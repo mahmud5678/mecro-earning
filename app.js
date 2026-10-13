@@ -1,4 +1,3 @@
-
 /* ==========================================
    MECRO EARNING - COMPLETE APP.JS
    Supabase JavaScript SDK v2
@@ -6,7 +5,6 @@
 
 const SUPABASE_URL = "https://orerzedneirhykjqtdyw.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_gFk6OpRBgbl9oczAw650IA_72KoG1RU";
-
 const SITE_URL = "https://mahmud5678.github.io/mecro-earning/";
 
 const $ = (id) => document.getElementById(id);
@@ -30,6 +28,8 @@ function money(amount) {
   return "৳" + Number(amount || 0).toFixed(2);
 }
 
+// ---------- Authentication UI ----------
+
 function showAuth(mode) {
   authMode = mode;
 
@@ -38,11 +38,9 @@ function showAuth(mode) {
       mode === "signup" ? "Create your account" : "Log in";
   }
 
-  if ($("name")) $("name").hidden = mode !== "signup";
-
-  if ($("authSubmit")) {
-    $("authSubmit").textContent =
-      mode === "signup" ? "Create account" : "Log in";
+  if ($("name")) {
+    $("name").hidden = mode !== "signup";
+    $("name").required = mode === "signup";
   }
 
   if ($("password")) {
@@ -50,7 +48,13 @@ function showAuth(mode) {
       mode === "signup" ? "new-password" : "current-password";
   }
 
+  if ($("authSubmit")) {
+    $("authSubmit").textContent =
+      mode === "signup" ? "Create account" : "Log in";
+  }
+
   message("authMessage", "");
+
   if ($("authSection")) {
     $("authSection").hidden = false;
     $("authSection").scrollIntoView({ behavior: "smooth" });
@@ -62,6 +66,14 @@ function showDashboard(user) {
 
   if ($("authSection")) $("authSection").hidden = true;
   if ($("dashboard")) $("dashboard").hidden = false;
+
+  // Hide welcome hero after login
+  const hero = document.querySelector(".hero");
+  if (hero) hero.hidden = true;
+
+  // Hide account buttons and messages when logged in
+  if ($("globalMessage")) $("globalMessage").textContent = "";
+
   if ($("userName")) {
     $("userName").textContent =
       user.user_metadata?.display_name ||
@@ -73,15 +85,24 @@ function showDashboard(user) {
 
 function showLoggedOut() {
   currentUser = null;
+
   if ($("dashboard")) $("dashboard").hidden = true;
   if ($("authSection")) $("authSection").hidden = false;
+
+  // Show welcome hero again after logout
+  const hero = document.querySelector(".hero");
+  if (hero) hero.hidden = false;
 }
 
 // ---------- Supabase Setup ----------
 
 function setupSupabase() {
   if (!window.supabase) {
-    message("globalMessage", "Supabase SDK লোড হয়নি। Internet সংযোগ চেক কর।", true);
+    message(
+      "globalMessage",
+      "Supabase SDK load হয়নি। Internet সংযোগ চেক কর।",
+      true
+    );
     return false;
   }
 
@@ -107,15 +128,21 @@ async function googleLogin() {
 
   message("authMessage", "Google Login খোলা হচ্ছে...");
 
-  const { error } = await supabaseClient.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: SITE_URL
-    }
-  });
+  try {
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: SITE_URL
+      }
+    });
 
-  if (error) {
-    message("authMessage", "Google Login হয়নি: " + error.message, true);
+    if (error) throw error;
+  } catch (error) {
+    message(
+      "authMessage",
+      "Google Login হয়নি: " + error.message,
+      true
+    );
   }
 }
 
@@ -138,13 +165,17 @@ async function ensureProfile(user, displayName = "") {
   if (readError) throw readError;
 
   if (!profile) {
-    const username = (user.email?.split("@")[0] || "user").slice(0, 50);
+    const username = (
+      user.email?.split("@")[0] || "user"
+    ).slice(0, 50);
 
-    const { error } = await supabaseClient.from("profiles").insert({
-      id: user.id,
-      username,
-      display_name: name
-    });
+    const { error } = await supabaseClient
+      .from("profiles")
+      .insert({
+        id: user.id,
+        username,
+        display_name: name
+      });
 
     if (error) throw error;
   } else if (!profile.display_name && name) {
@@ -195,7 +226,9 @@ async function handleAuth(event) {
         password,
         options: {
           emailRedirectTo: SITE_URL,
-          data: { display_name: displayName }
+          data: {
+            display_name: displayName
+          }
         }
       });
     } else {
@@ -210,10 +243,15 @@ async function handleAuth(event) {
     const user = result.data.user;
     const session = result.data.session;
 
-    if (!user) throw new Error("User তৈরি হয়নি। আবার চেষ্টা কর।");
+    if (!user) {
+      throw new Error("User তৈরি হয়নি। আবার চেষ্টা কর।");
+    }
 
     if (!session && authMode === "signup") {
-      message("authMessage", "অ্যাকাউন্টের অনুরোধ হয়েছে। Email যাচাই করে Login কর।");
+      message(
+        "authMessage",
+        "অ্যাকাউন্টের অনুরোধ হয়েছে। Email যাচাই করে Login কর।"
+      );
       return;
     }
 
@@ -223,10 +261,14 @@ async function handleAuth(event) {
 
     await ensureProfile(user, displayName);
     await startApp(user);
-    message("globalMessage", "সফলভাবে Login হয়েছে।");
 
+    message("globalMessage", "সফলভাবে Login হয়েছে।");
   } catch (error) {
-    message("authMessage", error.message || "কাজটি করা যায়নি।", true);
+    message(
+      "authMessage",
+      error.message || "কাজটি করা যায়নি।",
+      true
+    );
   } finally {
     if (button) button.disabled = false;
   }
@@ -242,12 +284,17 @@ async function startApp(user) {
   try {
     currentUser = user;
     showDashboard(user);
+
     await loadProfile();
     await loadTasks();
     await loadHistory();
     await loadAdmin();
   } catch (error) {
-    message("globalMessage", error.message || "Dashboard load হয়নি।", true);
+    message(
+      "globalMessage",
+      error.message || "Dashboard load হয়নি।",
+      true
+    );
   } finally {
     appStarting = false;
   }
@@ -265,7 +312,11 @@ async function loadProfile() {
     .maybeSingle();
 
   if (error) {
-    message("globalMessage", "Profile load হয়নি: " + error.message, true);
+    message(
+      "globalMessage",
+      "Profile load হয়নি: " + error.message,
+      true
+    );
   } else if (data && $("userName")) {
     $("userName").textContent =
       data.display_name ||
@@ -274,14 +325,22 @@ async function loadProfile() {
       "User";
   }
 
-  const { data: transactions, error: walletError } = await supabaseClient
-    .from("wallet_transactions")
-    .select("amount")
-    .eq("user_id", currentUser.id);
+  const { data: transactions, error: walletError } =
+    await supabaseClient
+      .from("wallet_transactions")
+      .select("amount")
+      .eq("user_id", currentUser.id);
 
   if (walletError) {
-    if ($("balance")) $("balance").textContent = "Unavailable";
-    message("globalMessage", "Wallet load হয়নি: " + walletError.message, true);
+    if ($("balance")) {
+      $("balance").textContent = "Unavailable";
+    }
+
+    message(
+      "globalMessage",
+      "Wallet load হয়নি: " + walletError.message,
+      true
+    );
     return;
   }
 
@@ -290,7 +349,9 @@ async function loadProfile() {
     0
   );
 
-  if ($("balance")) $("balance").textContent = money(balance);
+  if ($("balance")) {
+    $("balance").textContent = money(balance);
+  }
 }
 
 // ---------- Tasks ----------
@@ -308,11 +369,15 @@ async function loadTasks() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    taskList.textContent = "Tasks load হয়নি। Database permissions চেক কর।";
+    taskList.textContent =
+      "Tasks load হয়নি। Database permissions চেক কর।";
     return;
   }
 
-  if ($("taskCount")) $("taskCount").textContent = (data || []).length;
+  if ($("taskCount")) {
+    $("taskCount").textContent = (data || []).length;
+  }
+
   taskList.replaceChildren();
 
   if (!data || data.length === 0) {
@@ -328,7 +393,8 @@ async function loadTasks() {
     title.textContent = task.title;
 
     const description = document.createElement("p");
-    description.textContent = task.description || "Task details দেখ।";
+    description.textContent =
+      task.description || "Task details দেখ।";
 
     const reward = document.createElement("p");
     reward.className = "reward";
@@ -347,6 +413,7 @@ async function loadTasks() {
           link.rel = "noopener noreferrer";
           link.className = "btn secondary";
           link.textContent = "Open task";
+
           card.append(link);
         }
       } catch (_) {}
@@ -400,7 +467,8 @@ async function loadTasks() {
         status.style.color = "#20d6a1";
         textarea.value = "";
       } catch (error) {
-        status.textContent = error.message || "Submission হয়নি।";
+        status.textContent =
+          error.message || "Submission হয়নি.";
         status.style.color = "#ff8585";
       } finally {
         button.disabled = false;
@@ -423,7 +491,8 @@ async function handleWithdrawal(event) {
   }
 
   const amount = Number($("withdrawAmount")?.value);
-  const paymentNumber = $("paymentNumber")?.value.trim() || "";
+  const paymentNumber =
+    $("paymentNumber")?.value.trim() || "";
 
   if (!Number.isFinite(amount) || amount <= 0) {
     message("withdrawMessage", "সঠিক amount লিখ।", true);
@@ -431,29 +500,45 @@ async function handleWithdrawal(event) {
   }
 
   if (!/^01[3-9]\d{8}$/.test(paymentNumber)) {
-    message("withdrawMessage", "সঠিক বাংলাদেশি মোবাইল নম্বর লিখ।", true);
+    message(
+      "withdrawMessage",
+      "সঠিক বাংলাদেশি মোবাইল নম্বর লিখ।",
+      true
+    );
     return;
   }
 
-  const button = $("withdrawForm")?.querySelector('button[type="submit"]');
+  const button = $("withdrawForm")?.querySelector(
+    'button[type="submit"]'
+  );
+
   if (button) button.disabled = true;
 
   message("withdrawMessage", "Request পাঠানো হচ্ছে...");
 
   try {
-    const { error } = await supabaseClient.rpc("request_withdrawal", {
-      p_amount: amount,
-      p_payment_number: paymentNumber
-    });
+    const { error } = await supabaseClient.rpc(
+      "request_withdrawal",
+      {
+        p_amount: amount,
+        p_payment_number: paymentNumber
+      }
+    );
 
     if (error) throw error;
 
-    message("withdrawMessage", "Request জমা হয়েছে। Admin review করবে।");
+    message(
+      "withdrawMessage",
+      "Request জমা হয়েছে। Admin review করবে।"
+    );
+
     $("withdrawForm").reset();
+
     await loadProfile();
     await loadHistory();
   } catch (error) {
     console.error("Withdrawal error:", error.message);
+
     message(
       "withdrawMessage",
       "Withdrawal এখনো প্রস্তুত নয়। Secure database function তৈরি করতে হবে।",
@@ -497,10 +582,12 @@ async function loadHistory() {
 
     const amount = document.createElement("strong");
     amount.textContent =
-      (Number(item.amount) >= 0 ? "+" : "") + money(item.amount);
+      (Number(item.amount) >= 0 ? "+" : "") +
+      money(item.amount);
 
     const reason = document.createElement("p");
-    reason.textContent = item.reason || "Wallet transaction";
+    reason.textContent =
+      item.reason || "Wallet transaction";
 
     const date = document.createElement("p");
     date.textContent = item.created_at
@@ -549,6 +636,7 @@ async function logout() {
   }
 
   showLoggedOut();
+  showAuth("login");
   message("globalMessage", "Logout হয়েছে।");
 }
 
@@ -564,9 +652,11 @@ async function init() {
   bindClick("showLogin", () => showAuth("login"));
   bindClick("heroSignup", () => showAuth("signup"));
   bindClick("heroLogin", () => showAuth("login"));
+
   bindClick("googleLogin", googleLogin);
   bindClick("googleLoginBtn", googleLogin);
   bindClick("googleSignup", googleLogin);
+
   bindClick("logoutBtn", logout);
 
   if ($("authForm")) {
@@ -574,18 +664,31 @@ async function init() {
   }
 
   if ($("withdrawForm")) {
-    $("withdrawForm").addEventListener("submit", handleWithdrawal);
+    $("withdrawForm").addEventListener(
+      "submit",
+      handleWithdrawal
+    );
   }
 
   bindClick("menuBtn", () => {
+    if (currentUser) {
+      $("dashboard")?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
     if (!$("authSection")) return;
+
     $("authSection").hidden = !$("authSection").hidden;
-    $("authSection").scrollIntoView({ behavior: "smooth" });
+
+    $("authSection").scrollIntoView({
+      behavior: "smooth"
+    });
   });
 
   if (!setupSupabase()) return;
 
-  const { data, error } = await supabaseClient.auth.getSession();
+  const { data, error } =
+    await supabaseClient.auth.getSession();
 
   if (error) {
     message("globalMessage", error.message, true);
@@ -598,13 +701,20 @@ async function init() {
     showLoggedOut();
   }
 
-  supabaseClient.auth.onAuthStateChange((event, session) => {
-    if (event === "SIGNED_OUT") {
-      showLoggedOut();
-    } else if (event === "SIGNED_IN" && session?.user) {
-      setTimeout(() => startApp(session.user), 0);
+  supabaseClient.auth.onAuthStateChange(
+    (event, session) => {
+      if (event === "SIGNED_OUT") {
+        showLoggedOut();
+      } else if (
+        event === "SIGNED_IN" &&
+        session?.user
+      ) {
+        setTimeout(() => {
+          startApp(session.user);
+        }, 0);
+      }
     }
-  });
+  );
 }
 
 document.addEventListener("DOMContentLoaded", init);
