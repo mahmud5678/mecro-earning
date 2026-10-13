@@ -1,3 +1,4 @@
+
 /* ==========================================
    MECRO EARNING - COMPLETE APP.JS
    Supabase JavaScript SDK v2
@@ -5,16 +6,13 @@
 
 const SUPABASE_URL = "https://orerzedneirhykjqtdyw.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_gFk6OpRBgbl9oczAw650IA_72KoG1RU";
-const SITE_URL = "https://mahmud5678.github.io/mecro-earning/";
 
 const $ = (id) => document.getElementById(id);
 
 let supabaseClient = null;
 let currentUser = null;
-let authMode = "signup";
+let currentProfile = null;
 let appStarting = false;
-
-// ---------- Helpers ----------
 
 function message(id, text, isError = false) {
   const el = $(id);
@@ -28,11 +26,15 @@ function money(amount) {
   return "৳" + Number(amount || 0).toFixed(2);
 }
 
-// ---------- Authentication UI ----------
+function safeText(tag, text) {
+  const el = document.createElement(tag);
+  el.textContent = text ?? "";
+  return el;
+}
 
-function showAuth(mode) {
-  authMode = mode;
+/* ---------- Authentication UI ---------- */
 
+function showAuth(mode = "signup") {
   if ($("authTitle")) {
     $("authTitle").textContent =
       mode === "signup" ? "Create your account" : "Log in";
@@ -53,6 +55,7 @@ function showAuth(mode) {
       mode === "signup" ? "Create account" : "Log in";
   }
 
+  window.authMode = mode;
   message("authMessage", "");
 
   if ($("authSection")) {
@@ -67,15 +70,14 @@ function showDashboard(user) {
   if ($("authSection")) $("authSection").hidden = true;
   if ($("dashboard")) $("dashboard").hidden = false;
 
-  // Hide welcome hero after login
   const hero = document.querySelector(".hero");
   if (hero) hero.hidden = true;
 
-  // Hide account buttons and messages when logged in
   if ($("globalMessage")) $("globalMessage").textContent = "";
 
   if ($("userName")) {
     $("userName").textContent =
+      currentProfile?.display_name ||
       user.user_metadata?.display_name ||
       user.user_metadata?.full_name ||
       user.email?.split("@")[0] ||
@@ -85,24 +87,22 @@ function showDashboard(user) {
 
 function showLoggedOut() {
   currentUser = null;
+  currentProfile = null;
 
   if ($("dashboard")) $("dashboard").hidden = true;
   if ($("authSection")) $("authSection").hidden = false;
 
-  // Show welcome hero again after logout
   const hero = document.querySelector(".hero");
   if (hero) hero.hidden = false;
+
+  if ($("adminSection")) $("adminSection").hidden = true;
 }
 
-// ---------- Supabase Setup ----------
+/* ---------- Supabase ---------- */
 
 function setupSupabase() {
   if (!window.supabase) {
-    message(
-      "globalMessage",
-      "Supabase SDK load হয়নি। Internet সংযোগ চেক কর।",
-      true
-    );
+    message("globalMessage", "Supabase SDK load হয়নি। Internet চেক কর।", true);
     return false;
   }
 
@@ -118,35 +118,29 @@ function setupSupabase() {
   }
 }
 
-// ---------- Google Login ----------
+/* ---------- Google Login ---------- */
 
 async function googleLogin() {
-  if (!supabaseClient) {
-    message("authMessage", "Supabase এখনো প্রস্তুত হয়নি।", true);
-    return;
-  }
-
-  message("authMessage", "Google Login খোলা হচ্ছে...");
+  if (!supabaseClient) return;
 
   try {
+    message("authMessage", "Google Login খোলা হচ্ছে...");
+
     const { error } = await supabaseClient.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: SITE_URL
+        redirectTo: window.location.origin +
+          window.location.pathname
       }
     });
 
     if (error) throw error;
   } catch (error) {
-    message(
-      "authMessage",
-      "Google Login হয়নি: " + error.message,
-      true
-    );
+    message("authMessage", error.message, true);
   }
 }
 
-// ---------- Profile Setup ----------
+/* ---------- Profile ---------- */
 
 async function ensureProfile(user, displayName = "") {
   const name =
@@ -156,58 +150,69 @@ async function ensureProfile(user, displayName = "") {
     user.email?.split("@")[0] ||
     "User";
 
-  const { data: profile, error: readError } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from("profiles")
-    .select("id, username, display_name")
+    .select("id, username, display_name, role")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (readError) throw readError;
+  if (error) throw error;
 
-  if (!profile) {
-    const username = (
-      user.email?.split("@")[0] || "user"
-    ).slice(0, 50);
+  if (data) {
+    currentProfile = data;
 
-    const { error } = await supabaseClient
+    if (!data.display_name && name) {
+      const { error: updateError } = await supabaseClient
+        .from("profiles")
+        .update({ display_name: name })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      currentProfile.display_name = name;
+    }
+
+    return;
+  }
+
+  const baseUsername = (
+    user.email?.split("@")[0] || "user"
+  ).replace(/[^a-zA-Z0-9_]/g, "").slice(0, 35) || "user";
+
+  const username = baseUsername + "_" + user.id.slice(0, 6);
+
+  const { data: created, error: insertError } =
+    await supabaseClient
       .from("profiles")
       .insert({
         id: user.id,
         username,
         display_name: name
-      });
+      })
+      .select("id, username, display_name, role")
+      .single();
 
-    if (error) throw error;
-  } else if (!profile.display_name && name) {
-    const { error } = await supabaseClient
-      .from("profiles")
-      .update({ display_name: name })
-      .eq("id", user.id);
+  if (insertError) throw insertError;
 
-    if (error) throw error;
-  }
+  currentProfile = created;
 }
 
-// ---------- Email Signup / Login ----------
+/* ---------- Email Signup / Login ---------- */
 
 async function handleAuth(event) {
   event.preventDefault();
 
-  if (!supabaseClient) {
-    message("authMessage", "Supabase সেটআপ হয়নি।", true);
-    return;
-  }
-
   const email = $("email")?.value.trim();
   const password = $("password")?.value || "";
-  const displayName = $("name")?.value.trim() || "";
+  const name = $("name")?.value.trim() || "";
+  const mode = window.authMode || "signup";
 
   if (!email || !password) {
     message("authMessage", "Email ও password লিখ।", true);
     return;
   }
 
-  if (authMode === "signup" && !displayName) {
+  if (mode === "signup" && !name) {
     message("authMessage", "তোর নাম লিখ।", true);
     return;
   }
@@ -215,20 +220,17 @@ async function handleAuth(event) {
   const button = $("authSubmit");
   if (button) button.disabled = true;
 
-  message("authMessage", "অপেক্ষা কর...");
-
   try {
     let result;
 
-    if (authMode === "signup") {
+    if (mode === "signup") {
       result = await supabaseClient.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: SITE_URL,
-          data: {
-            display_name: displayName
-          }
+          emailRedirectTo: window.location.origin +
+            window.location.pathname,
+          data: { display_name: name }
         }
       });
     } else {
@@ -240,14 +242,7 @@ async function handleAuth(event) {
 
     if (result.error) throw result.error;
 
-    const user = result.data.user;
-    const session = result.data.session;
-
-    if (!user) {
-      throw new Error("User তৈরি হয়নি। আবার চেষ্টা কর।");
-    }
-
-    if (!session && authMode === "signup") {
+    if (!result.data.session) {
       message(
         "authMessage",
         "অ্যাকাউন্টের অনুরোধ হয়েছে। Email যাচাই করে Login কর।"
@@ -255,34 +250,27 @@ async function handleAuth(event) {
       return;
     }
 
-    if (!session) {
-      throw new Error("Login session পাওয়া যায়নি।");
-    }
-
-    await ensureProfile(user, displayName);
-    await startApp(user);
-
-    message("globalMessage", "সফলভাবে Login হয়েছে।");
+    await startApp(result.data.session.user);
   } catch (error) {
-    message(
-      "authMessage",
-      error.message || "কাজটি করা যায়নি।",
-      true
-    );
+    console.error("Authentication error:", error);
+    message("authMessage", error.message || "Login হয়নি।", true);
   } finally {
     if (button) button.disabled = false;
   }
 }
 
-// ---------- Dashboard ----------
+/* ---------- Start Dashboard ---------- */
 
 async function startApp(user) {
   if (!user || appStarting) return;
 
   appStarting = true;
+  currentUser = user;
 
   try {
-    currentUser = user;
+    // Profile creation is attempted for Google and email users.
+    await ensureProfile(user);
+
     showDashboard(user);
 
     await loadProfile();
@@ -290,9 +278,11 @@ async function startApp(user) {
     await loadHistory();
     await loadAdmin();
   } catch (error) {
+    console.error("Dashboard error:", error);
+
     message(
       "globalMessage",
-      error.message || "Dashboard load হয়নি।",
+      "Dashboard error: " + error.message,
       true
     );
   } finally {
@@ -300,67 +290,60 @@ async function startApp(user) {
   }
 }
 
-// ---------- Profile and Wallet ----------
+/* ---------- Wallet ---------- */
 
 async function loadProfile() {
-  if (!currentUser || !supabaseClient) return;
+  if (!currentUser) return;
 
-  const { data, error } = await supabaseClient
-    .from("profiles")
-    .select("display_name, username, role")
-    .eq("id", currentUser.id)
-    .maybeSingle();
+  const { data: profile, error: profileError } =
+    await supabaseClient
+      .from("profiles")
+      .select("display_name, username, role")
+      .eq("id", currentUser.id)
+      .maybeSingle();
 
-  if (error) {
-    message(
-      "globalMessage",
-      "Profile load হয়নি: " + error.message,
-      true
-    );
-  } else if (data && $("userName")) {
+  if (profileError) {
+    message("globalMessage", "Profile load হয়নি: " +
+      profileError.message, true);
+    return;
+  }
+
+  currentProfile = profile;
+
+  if ($("userName")) {
     $("userName").textContent =
-      data.display_name ||
-      data.username ||
+      profile?.display_name ||
+      profile?.username ||
       currentUser.email?.split("@")[0] ||
       "User";
   }
 
-  const { data: transactions, error: walletError } =
-    await supabaseClient
-      .from("wallet_transactions")
-      .select("amount")
-      .eq("user_id", currentUser.id);
+  const { data, error } = await supabaseClient
+    .from("wallet_transactions")
+    .select("amount")
+    .eq("user_id", currentUser.id);
 
-  if (walletError) {
-    if ($("balance")) {
-      $("balance").textContent = "Unavailable";
-    }
-
-    message(
-      "globalMessage",
-      "Wallet load হয়নি: " + walletError.message,
-      true
-    );
+  if (error) {
+    if ($("balance")) $("balance").textContent = "Unavailable";
+    console.error("Wallet error:", error.message);
     return;
   }
 
-  const balance = (transactions || []).reduce(
+  const total = (data || []).reduce(
     (sum, row) => sum + Number(row.amount || 0),
     0
   );
 
-  if ($("balance")) {
-    $("balance").textContent = money(balance);
-  }
+  if ($("balance")) $("balance").textContent = money(total);
 }
 
-// ---------- Tasks ----------
+/* ---------- Tasks for Users ---------- */
 
 async function loadTasks() {
-  if (!supabaseClient || !currentUser || !$("taskList")) return;
+  const list = $("taskList");
+  if (!list || !currentUser) return;
 
-  const taskList = $("taskList");
-  taskList.textContent = "Tasks load হচ্ছে...";
+  list.textContent = "Tasks load হচ্ছে...";
 
   const { data, error } = await supabaseClient
     .from("tasks")
@@ -369,19 +352,19 @@ async function loadTasks() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    taskList.textContent =
-      "Tasks load হয়নি। Database permissions চেক কর।";
+    list.textContent = "Tasks load হয়নি। Database permissions চেক কর।";
+    console.error("Task load error:", error.message);
     return;
   }
 
   if ($("taskCount")) {
-    $("taskCount").textContent = (data || []).length;
+    $("taskCount").textContent = String((data || []).length);
   }
 
-  taskList.replaceChildren();
+  list.replaceChildren();
 
-  if (!data || data.length === 0) {
-    taskList.textContent = "এখনো কোনো task available নেই।";
+  if (!data?.length) {
+    list.textContent = "এখনো কোনো task available নেই।";
     return;
   }
 
@@ -389,70 +372,54 @@ async function loadTasks() {
     const card = document.createElement("article");
     card.className = "task-card";
 
-    const title = document.createElement("h3");
-    title.textContent = task.title;
-
-    const description = document.createElement("p");
-    description.textContent =
-      task.description || "Task details দেখ।";
-
-    const reward = document.createElement("p");
-    reward.className = "reward";
-    reward.textContent = "Reward: " + money(task.reward);
-
-    card.append(title, description, reward);
+    card.append(
+      safeText("h3", task.title),
+      safeText("p", task.description || "Task details দেখ।"),
+      safeText("p", "Reward: " + money(task.reward))
+    );
 
     if (task.task_url) {
       try {
-        const parsedURL = new URL(task.task_url);
+        const url = new URL(task.task_url);
 
-        if (["https:", "http:"].includes(parsedURL.protocol)) {
-          const link = document.createElement("a");
-          link.href = parsedURL.href;
+        if (url.protocol === "https:" || url.protocol === "http:") {
+          const link = safeText("a", "Open task");
+          link.href = url.href;
           link.target = "_blank";
           link.rel = "noopener noreferrer";
           link.className = "btn secondary";
-          link.textContent = "Open task";
-
           card.append(link);
         }
       } catch (_) {}
     }
 
     const form = document.createElement("form");
+    const label = safeText("label", "Task proof / completion details");
+    const input = document.createElement("textarea");
+    input.required = true;
+    input.maxLength = 2000;
+    input.placeholder = "কাজের সত্যিকারের প্রমাণ লিখ";
 
-    const label = document.createElement("label");
-    label.textContent = "Task proof / completion details";
-
-    const textarea = document.createElement("textarea");
-    textarea.required = true;
-    textarea.maxLength = 2000;
-    textarea.placeholder = "কাজের সত্যিকারের প্রমাণ লিখ";
-
-    const button = document.createElement("button");
-    button.className = "btn primary";
-    button.type = "submit";
-    button.textContent = "Submit for review";
+    const submit = safeText("button", "Submit for review");
+    submit.type = "submit";
+    submit.className = "btn primary";
 
     const status = document.createElement("p");
-    status.className = "message";
     status.setAttribute("aria-live", "polite");
 
-    form.append(label, textarea, button, status);
+    form.append(label, input, submit, status);
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
 
-      if (!currentUser) return;
+      const proof = input.value.trim();
+      if (!proof || !currentUser) return;
 
-      const proof = textarea.value.trim();
-      if (!proof) return;
-
-      button.disabled = true;
+      submit.disabled = true;
       status.textContent = "Submitting...";
 
       try {
-        const { error: submitError } = await supabaseClient
+        const { error } = await supabaseClient
           .from("task_submissions")
           .insert({
             task_id: task.id,
@@ -461,101 +428,256 @@ async function loadTasks() {
             status: "pending"
           });
 
-        if (submitError) throw submitError;
+        if (error) throw error;
 
         status.textContent = "Submitted for review.";
         status.style.color = "#20d6a1";
-        textarea.value = "";
+        input.value = "";
       } catch (error) {
-        status.textContent =
-          error.message || "Submission হয়নি.";
+        status.textContent = error.message || "Submission হয়নি।";
         status.style.color = "#ff8585";
       } finally {
-        button.disabled = false;
+        submit.disabled = false;
       }
     });
 
     card.append(form);
-    taskList.append(card);
+    list.append(card);
   }
 }
 
-// ---------- Withdrawal ----------
+/* ---------- Admin Panel ---------- */
 
-async function handleWithdrawal(event) {
-  event.preventDefault();
+function createAdminPanel() {
+  let section = $("adminSection");
 
-  if (!supabaseClient || !currentUser) {
-    message("withdrawMessage", "আগে Login কর।", true);
-    return;
+  if (!section) {
+    section = document.createElement("section");
+    section.id = "adminSection";
+    section.className = "panel";
+    section.hidden = true;
+
+    const dashboard = $("dashboard");
+
+    if (dashboard) {
+      dashboard.append(section);
+    } else {
+      document.body.append(section);
+    }
   }
 
-  const amount = Number($("withdrawAmount")?.value);
-  const paymentNumber =
-    $("paymentNumber")?.value.trim() || "";
+  section.replaceChildren();
 
-  if (!Number.isFinite(amount) || amount <= 0) {
-    message("withdrawMessage", "সঠিক amount লিখ।", true);
-    return;
-  }
-
-  if (!/^01[3-9]\d{8}$/.test(paymentNumber)) {
-    message(
-      "withdrawMessage",
-      "সঠিক বাংলাদেশি মোবাইল নম্বর লিখ।",
-      true
-    );
-    return;
-  }
-
-  const button = $("withdrawForm")?.querySelector(
-    'button[type="submit"]'
+  section.append(
+    safeText("h2", "MECRO Admin Panel"),
+    safeText("p", "Create and manage available tasks.")
   );
 
-  if (button) button.disabled = true;
+  const form = document.createElement("form");
+  form.id = "adminTaskForm";
 
-  message("withdrawMessage", "Request পাঠানো হচ্ছে...");
+  const fields = [
+    { name: "title", label: "Task title", type: "text", required: true },
+    { name: "description", label: "Task description", type: "textarea", required: true },
+    { name: "reward", label: "Reward (BDT)", type: "number", required: true },
+    { name: "task_url", label: "Task URL (optional)", type: "url", required: false }
+  ];
 
-  try {
-    const { error } = await supabaseClient.rpc(
-      "request_withdrawal",
-      {
-        p_amount: amount,
-        p_payment_number: paymentNumber
+  for (const field of fields) {
+    const label = safeText("label", field.label);
+    label.htmlFor = "admin_" + field.name;
+
+    let input;
+
+    if (field.type === "textarea") {
+      input = document.createElement("textarea");
+      input.maxLength = 3000;
+    } else {
+      input = document.createElement("input");
+      input.type = field.type;
+
+      if (field.name === "reward") {
+        input.min = "0.01";
+        input.step = "0.01";
       }
+    }
+
+    input.id = "admin_" + field.name;
+    input.name = field.name;
+    input.required = field.required;
+
+    form.append(label, input);
+  }
+
+  const activeLabel = safeText("label", "Task active");
+  const active = document.createElement("input");
+  active.type = "checkbox";
+  active.name = "active";
+  active.checked = true;
+  activeLabel.append(active);
+
+  const submit = safeText("button", "Add Task");
+  submit.type = "submit";
+  submit.className = "btn primary";
+
+  const status = document.createElement("p");
+  status.id = "adminTaskMessage";
+  status.setAttribute("aria-live", "polite");
+
+  form.append(activeLabel, submit, status);
+  section.append(form, safeText("h3", "Existing Tasks"));
+
+  const existing = document.createElement("div");
+  existing.id = "adminTaskList";
+  section.append(existing);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    // Recheck the role in the database before attempting insert.
+    const { data: profile, error: roleError } =
+      await supabaseClient
+        .from("profiles")
+        .select("role")
+        .eq("id", currentUser.id)
+        .maybeSingle();
+
+    if (roleError || profile?.role !== "admin") {
+      status.textContent = "Admin permission পাওয়া যায়নি।";
+      status.style.color = "#ff8585";
+      return;
+    }
+
+    const title = form.elements.title.value.trim();
+    const description = form.elements.description.value.trim();
+    const reward = Number(form.elements.reward.value);
+    const taskURL = form.elements.task_url.value.trim();
+    const isActive = active.checked;
+
+    if (!title || !description ||
+        !Number.isFinite(reward) || reward <= 0) {
+      status.textContent = "সব তথ্য সঠিকভাবে পূরণ কর।";
+      status.style.color = "#ff8585";
+      return;
+    }
+
+    if (taskURL) {
+      try {
+        const parsed = new URL(taskURL);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+          throw new Error("Invalid URL");
+        }
+      } catch (_) {
+        status.textContent = "সঠিক http/https Task URL লিখ।";
+        status.style.color = "#ff8585";
+        return;
+      }
+    }
+
+    submit.disabled = true;
+    status.textContent = "Task save হচ্ছে...";
+
+    try {
+      const task = {
+        title,
+        description,
+        reward,
+        task_url: taskURL || null,
+        active: isActive
+      };
+
+      const { error } = await supabaseClient
+        .from("tasks")
+        .insert(task);
+
+      if (error) throw error;
+
+      status.textContent = "Task সফলভাবে যোগ হয়েছে।";
+      status.style.color = "#20d6a1";
+      form.reset();
+      active.checked = true;
+
+      await loadAdminTasks();
+      await loadTasks();
+    } catch (error) {
+      console.error("Admin task error:", error);
+
+      status.textContent =
+        "Task save হয়নি: " + error.message;
+      status.style.color = "#ff8585";
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  return section;
+}
+
+async function loadAdmin() {
+  if (!currentUser || !supabaseClient) return;
+
+  const { data, error } = await supabaseClient
+    .from("profiles")
+    .select("role")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+
+  if (error || data?.role !== "admin") {
+    if ($("adminSection")) $("adminSection").hidden = true;
+    return;
+  }
+
+  const section = createAdminPanel();
+  section.hidden = false;
+
+  await loadAdminTasks();
+}
+
+async function loadAdminTasks() {
+  const list = $("adminTaskList");
+  if (!list || !currentUser) return;
+
+  list.textContent = "Tasks load হচ্ছে...";
+
+  const { data, error } = await supabaseClient
+    .from("tasks")
+    .select("id, title, reward, active")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    list.textContent = "Admin task list load হয়নি।";
+    console.error(error.message);
+    return;
+  }
+
+  list.replaceChildren();
+
+  if (!data?.length) {
+    list.textContent = "এখনো কোনো Task তৈরি হয়নি।";
+    return;
+  }
+
+  for (const task of data) {
+    const row = document.createElement("article");
+    row.className = "task-card";
+
+    row.append(
+      safeText("h4", task.title),
+      safeText("p", "Reward: " + money(task.reward)),
+      safeText("p", task.active ? "Active" : "Inactive")
     );
 
-    if (error) throw error;
-
-    message(
-      "withdrawMessage",
-      "Request জমা হয়েছে। Admin review করবে।"
-    );
-
-    $("withdrawForm").reset();
-
-    await loadProfile();
-    await loadHistory();
-  } catch (error) {
-    console.error("Withdrawal error:", error.message);
-
-    message(
-      "withdrawMessage",
-      "Withdrawal এখনো প্রস্তুত নয়। Secure database function তৈরি করতে হবে।",
-      true
-    );
-  } finally {
-    if (button) button.disabled = false;
+    list.append(row);
   }
 }
 
-// ---------- Wallet History ----------
+/* ---------- Wallet History ---------- */
 
 async function loadHistory() {
-  if (!supabaseClient || !currentUser || !$("historyList")) return;
+  const list = $("historyList");
+  if (!list || !currentUser) return;
 
-  const history = $("historyList");
-  history.textContent = "History load হচ্ছে...";
+  list.textContent = "History load হচ্ছে...";
 
   const { data, error } = await supabaseClient
     .from("wallet_transactions")
@@ -565,14 +687,14 @@ async function loadHistory() {
     .limit(30);
 
   if (error) {
-    history.textContent = "History load হয়নি।";
+    list.textContent = "History load হয়নি।";
     return;
   }
 
-  history.replaceChildren();
+  list.replaceChildren();
 
-  if (!data || data.length === 0) {
-    history.textContent = "এখনো কোনো transaction নেই।";
+  if (!data?.length) {
+    list.textContent = "এখনো কোনো transaction নেই।";
     return;
   }
 
@@ -580,50 +702,78 @@ async function loadHistory() {
     const row = document.createElement("article");
     row.className = "history-item";
 
-    const amount = document.createElement("strong");
-    amount.textContent =
-      (Number(item.amount) >= 0 ? "+" : "") +
-      money(item.amount);
+    row.append(
+      safeText(
+        "strong",
+        (Number(item.amount) >= 0 ? "+" : "") + money(item.amount)
+      ),
+      safeText("p", item.reason || "Wallet transaction"),
+      safeText(
+        "p",
+        item.created_at ? new Date(item.created_at).toLocaleString() : ""
+      )
+    );
 
-    const reason = document.createElement("p");
-    reason.textContent =
-      item.reason || "Wallet transaction";
-
-    const date = document.createElement("p");
-    date.textContent = item.created_at
-      ? new Date(item.created_at).toLocaleString()
-      : "";
-
-    row.append(amount, reason, date);
-    history.append(row);
+    list.append(row);
   }
 }
 
-// ---------- Admin ----------
+/* ---------- Withdrawal ---------- */
 
-async function loadAdmin() {
-  if (!supabaseClient || !currentUser || !$("adminSection")) return;
+async function handleWithdrawal(event) {
+  event.preventDefault();
 
-  const { data: profile, error } = await supabaseClient
-    .from("profiles")
-    .select("role")
-    .eq("id", currentUser.id)
-    .maybeSingle();
-
-  if (error || profile?.role !== "admin") {
-    $("adminSection").hidden = true;
+  if (!currentUser) {
+    message("withdrawMessage", "আগে Login কর।", true);
     return;
   }
 
-  $("adminSection").hidden = false;
+  const amount = Number($("withdrawAmount")?.value);
+  const number = $("paymentNumber")?.value.trim() || "";
 
-  if ($("adminContent")) {
-    $("adminContent").textContent =
-      "Admin role পাওয়া গেছে। Secure admin review tools এখনো যোগ করতে হবে।";
+  if (!Number.isFinite(amount) || amount <= 0) {
+    message("withdrawMessage", "সঠিক amount লিখ।", true);
+    return;
+  }
+
+  if (!/^01[3-9]\d{8}$/.test(number)) {
+    message("withdrawMessage", "সঠিক বাংলাদেশি মোবাইল নম্বর লিখ।", true);
+    return;
+  }
+
+  const button = $("withdrawForm")?.querySelector(
+    'button[type="submit"]'
+  );
+
+  if (button) button.disabled = true;
+
+  try {
+    const { error } = await supabaseClient.rpc("request_withdrawal", {
+      p_amount: amount,
+      p_payment_number: number
+    });
+
+    if (error) throw error;
+
+    message("withdrawMessage", "Request জমা হয়েছে; review-এর অপেক্ষায়।");
+    $("withdrawForm").reset();
+
+    await loadProfile();
+    await loadHistory();
+  } catch (error) {
+    console.error("Withdrawal error:", error);
+
+    message(
+      "withdrawMessage",
+      "Withdrawal এখনো প্রস্তুত নয়। Database function ও permissions পরীক্ষা করতে হবে।",
+      true
+    );
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 
-// ---------- Logout ----------
+/* ---------- Logout ---------- */
 
 async function logout() {
   if (!supabaseClient) return;
@@ -637,15 +787,14 @@ async function logout() {
 
   showLoggedOut();
   showAuth("login");
-  message("globalMessage", "Logout হয়েছে।");
 }
 
-// ---------- Initialize ----------
+/* ---------- Initialize ---------- */
 
 async function init() {
   const bindClick = (id, callback) => {
-    const el = $(id);
-    if (el) el.addEventListener("click", callback);
+    const element = $(id);
+    if (element) element.addEventListener("click", callback);
   };
 
   bindClick("showSignup", () => showAuth("signup"));
@@ -656,7 +805,6 @@ async function init() {
   bindClick("googleLogin", googleLogin);
   bindClick("googleLoginBtn", googleLogin);
   bindClick("googleSignup", googleLogin);
-
   bindClick("logoutBtn", logout);
 
   if ($("authForm")) {
@@ -664,31 +812,12 @@ async function init() {
   }
 
   if ($("withdrawForm")) {
-    $("withdrawForm").addEventListener(
-      "submit",
-      handleWithdrawal
-    );
+    $("withdrawForm").addEventListener("submit", handleWithdrawal);
   }
-
-  bindClick("menuBtn", () => {
-    if (currentUser) {
-      $("dashboard")?.scrollIntoView({ behavior: "smooth" });
-      return;
-    }
-
-    if (!$("authSection")) return;
-
-    $("authSection").hidden = !$("authSection").hidden;
-
-    $("authSection").scrollIntoView({
-      behavior: "smooth"
-    });
-  });
 
   if (!setupSupabase()) return;
 
-  const { data, error } =
-    await supabaseClient.auth.getSession();
+  const { data, error } = await supabaseClient.auth.getSession();
 
   if (error) {
     message("globalMessage", error.message, true);
@@ -697,24 +826,17 @@ async function init() {
 
   if (data.session?.user) {
     await startApp(data.session.user);
-  } else {
+     } else {
     showLoggedOut();
   }
 
-  supabaseClient.auth.onAuthStateChange(
-    (event, session) => {
-      if (event === "SIGNED_OUT") {
-        showLoggedOut();
-      } else if (
-        event === "SIGNED_IN" &&
-        session?.user
-      ) {
-        setTimeout(() => {
-          startApp(session.user);
-        }, 0);
-      }
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === "SIGNED_OUT") {
+      showLoggedOut();
+    } else if (event === "SIGNED_IN" && session?.user) {
+      setTimeout(() => startApp(session.user), 0);
     }
-  );
+  });
 }
 
 document.addEventListener("DOMContentLoaded", init);
