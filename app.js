@@ -1,313 +1,212 @@
 
-/* ==========================================
-   MECRO EARNING - COMPLETE APP.JS
-   PART 1 OF 2
-========================================== */
+"use strict";
 
+// MECRO EARNING — app.js
 const SUPABASE_URL = "https://orerzedneirhykjqtdyw.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_gFk6OpRBgbl9oczAw650IA_72KoG1RU";
-
-const $ = (id) => document.getElementById(id);
+const SUPABASE_KEY = "sb_publishable_gFk6OpRBgbl9oczAw650IA_72KoG1RU";
 
 let supabaseClient = null;
 let currentUser = null;
 let currentProfile = null;
-let appStarting = false;
-let authMode = "signup";
+let authMode = "login";
+
+const $ = (id) => document.getElementById(id);
 
 function message(id, text, isError = false) {
   const el = $(id);
   if (!el) return;
   el.textContent = text || "";
-  el.classList.toggle("error", isError);
-  el.style.color = isError ? "#ff8585" : "#20d6a1";
+  el.style.color = isError ? "#dc2626" : "#15803d";
 }
 
-function money(amount) {
-  return "৳" + Number(amount || 0).toFixed(2);
+function money(value) {
+  return "৳" + Number(value || 0).toFixed(2);
 }
 
-function safeText(tag, text) {
-  const el = document.createElement(tag);
-  el.textContent = text == null ? "" : String(text);
-  return el;
+function safeText(value) {
+  return String(value ?? "");
 }
-
-/* ---------- Authentication UI ---------- */
-
-function showAuth(mode = "signup") {
-  authMode = mode;
-
-  if ($("authTitle")) {
-    $("authTitle").textContent =
-      mode === "signup" ? "Create your account" : "Log in";
-  }
-
-  if ($("name")) {
-    $("name").hidden = mode !== "signup";
-    $("name").required = mode === "signup";
-  }
-
-  if ($("password")) {
-    $("password").autocomplete =
-      mode === "signup" ? "new-password" : "current-password";
-  }
-
-  if ($("authSubmit")) {
-    $("authSubmit").textContent =
-      mode === "signup" ? "Create account" : "Log in";
-  }
-
-  message("authMessage", "");
-
-  if ($("authSection")) {
-    $("authSection").hidden = false;
-    $("authSection").scrollIntoView({ behavior: "smooth" });
-  }
-}
-
-function showDashboard(user) {
-  currentUser = user;
-
-  if ($("authSection")) $("authSection").hidden = true;
-  if ($("dashboard")) $("dashboard").hidden = false;
-
-  const hero = document.querySelector(".hero");
-  if (hero) hero.hidden = true;
-
-  message("globalMessage", "");
-
-  if ($("userName")) {
-    $("userName").textContent =
-      currentProfile?.display_name ||
-      user.user_metadata?.display_name ||
-      user.user_metadata?.full_name ||
-      user.email?.split("@")[0] ||
-      "User";
-  }
-}
-
-function showLoggedOut() {
-  currentUser = null;
-  currentProfile = null;
-
-  if ($("dashboard")) $("dashboard").hidden = true;
-  if ($("authSection")) $("authSection").hidden = false;
-  if ($("adminSection")) $("adminSection").hidden = true;
-
-  const hero = document.querySelector(".hero");
-  if (hero) hero.hidden = false;
-}
-
-/* ---------- Supabase Setup ---------- */
 
 function setupSupabase() {
   if (!window.supabase) {
-    message(
-      "globalMessage",
-      "Supabase SDK load হয়নি। Internet বা script tag চেক কর।",
-      true
-    );
+    message("globalMessage", "Supabase SDK load হয়নি। index.html পরীক্ষা কর।", true);
     return false;
   }
 
-  try {
+  if (!supabaseClient) {
     supabaseClient = window.supabase.createClient(
       SUPABASE_URL,
-      SUPABASE_ANON_KEY
+      SUPABASE_KEY
     );
-    return true;
-  } catch (error) {
-    message("globalMessage", error.message, true);
-    return false;
   }
+  return true;
 }
 
-/* ---------- Google Login ---------- */
+async function ensureProfile(user) {
+  const username =
+    (user.email || "user").split("@")[0] +
+    "_" + user.id.slice(0, 6);
 
-async function googleLogin() {
-  if (!supabaseClient) {
-    message("authMessage", "Supabase প্রস্তুত হয়নি।", true);
-    return;
-  }
-
-  try {
-    message("authMessage", "Google Login খোলা হচ্ছে...");
-
-    const { error } = await supabaseClient.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin + window.location.pathname
-      }
-    });
-
-    if (error) throw error;
-  } catch (error) {
-    message("authMessage", "Google Login হয়নি: " + error.message, true);
-  }
-}
-
-/* ---------- Profile Setup ---------- */
-
-async function ensureProfile(user, displayName = "") {
-  const name =
-    displayName ||
-    user.user_metadata?.display_name ||
-    user.user_metadata?.full_name ||
-    user.email?.split("@")[0] ||
-    "User";
-
-  const { data, error } = await supabaseClient
+  const { data: existing, error: readError } = await supabaseClient
     .from("profiles")
     .select("id, username, display_name, role")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (error) throw error;
+  if (readError) throw readError;
+  if (existing) return existing;
 
-  if (data) {
-    currentProfile = data;
+  const displayName =
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    username;
 
-    if (!data.display_name && name) {
-      const { error: updateError } = await supabaseClient
-        .from("profiles")
-        .update({ display_name: name })
-        .eq("id", user.id);
-
-      if (updateError) {
-        console.warn("Display name update failed:", updateError.message);
-      } else {
-        currentProfile.display_name = name;
-      }
-    }
-
-    return currentProfile;
-  }
-
-  const baseUsername = (
-    user.email?.split("@")[0] || "user"
-  ).replace(/[^a-zA-Z0-9_]/g, "").slice(0, 35) || "user";
-
-  const username = baseUsername + "_" + user.id.slice(0, 6);
-
-  const { data: created, error: insertError } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from("profiles")
     .insert({
       id: user.id,
       username,
-      display_name: name
+      display_name: displayName,
+      role: "user"
     })
     .select("id, username, display_name, role")
     .single();
 
-  if (insertError) throw insertError;
-
-  currentProfile = created;
-  return created;
+  if (error) throw error;
+  return data;
 }
 
-/* ---------- Email Signup / Login ---------- */
+function setAuthMode(mode) {
+  authMode = mode === "signup" ? "signup" : "login";
+
+  const nameInput = $("name");
+  const title = $("authTitle");
+  const submit = $("authSubmit");
+  const showSignup = $("showSignup");
+  const showLogin = $("showLogin");
+
+  if (nameInput) {
+    nameInput.hidden = authMode !== "signup";
+    nameInput.required = authMode === "signup";
+  }
+
+  if (title) {
+    title.textContent = authMode === "signup"
+      ? "Create MECRO Account"
+      : "Login to MECRO";
+  }
+
+  if (submit) {
+    submit.textContent = authMode === "signup"
+      ? "Create Account"
+      : "Login";
+  }
+
+  if (showSignup) showSignup.hidden = authMode === "signup";
+  if (showLogin) showLogin.hidden = authMode === "login";
+
+  message("authMessage", "");
+}
 
 async function handleAuth(event) {
   event.preventDefault();
-
-  if (!supabaseClient) return;
+  if (!setupSupabase()) return;
 
   const email = $("email")?.value.trim();
-  const password = $("password")?.value || "";
-  const displayName = $("name")?.value.trim() || "";
+  const password = $("password")?.value;
+  const displayName = $("name")?.value.trim();
 
   if (!email || !password) {
-    message("authMessage", "Email ও password লিখ।", true);
-    return;
-  }
-
-  if (authMode === "signup" && !displayName) {
-    message("authMessage", "তোর নাম লিখ।", true);
+    message("authMessage", "Email ও password দে।", true);
     return;
   }
 
   const button = $("authSubmit");
   if (button) button.disabled = true;
 
-  try {
-    let result;
+  message("authMessage", "অপেক্ষা কর...");
 
+  try {
     if (authMode === "signup") {
-      result = await supabaseClient.auth.signUp({
+      const { data, error } = await supabaseClient.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo:
-            window.location.origin + window.location.pathname,
-          data: { display_name: displayName }
+          data: { full_name: displayName || email.split("@")[0] }
         }
       });
+
+      if (error) throw error;
+
+      if (data.session) {
+        currentUser = data.user;
+        await startApp(currentUser);
+      } else {
+        message(
+          "authMessage",
+          "Account তৈরি হয়েছে। Email verification চাইলে email verify করে Login কর।"
+        );
+      }
     } else {
-      result = await supabaseClient.auth.signInWithPassword({
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
         email,
         password
       });
+
+      if (error) throw error;
+      currentUser = data.user;
+      await startApp(currentUser);
     }
-
-    if (result.error) throw result.error;
-
-    if (!result.data.session) {
-      message(
-        "authMessage",
-        "Account তৈরি করার অনুরোধ হয়েছে। Email যাচাই করে Login কর।"
-      );
-      return;
-    }
-
-    await startApp(result.data.session.user, displayName);
   } catch (error) {
-    console.error("Authentication error:", error);
-    message("authMessage", error.message || "Login হয়নি।", true);
+    message("authMessage", "সমস্যা: " + error.message, true);
   } finally {
     if (button) button.disabled = false;
   }
 }
 
-/* ---------- Start Dashboard ---------- */
+async function googleLogin() {
+  if (!setupSupabase()) return;
 
-async function startApp(user, displayName = "") {
-  if (!user || appStarting) return;
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin + window.location.pathname
+    }
+  });
 
-  appStarting = true;
+  if (error) {
+    message("authMessage", "Google Login হয়নি: " + error.message, true);
+  }
+}
+
+async function startApp(user) {
   currentUser = user;
 
-  try {
-    await ensureProfile(user, displayName);
-    showDashboard(user);
+  if ($("authSection")) $("authSection").hidden = true;
+  if ($("dashboard")) $("dashboard").hidden = false;
 
+  try {
+    currentProfile = await ensureProfile(user);
     await loadProfile();
     await loadTasks();
     await loadHistory();
     await loadAdmin();
+    message("globalMessage", "Login সফল হয়েছে।");
   } catch (error) {
-    console.error("Dashboard error:", error);
-    message("globalMessage", "Dashboard error: " + error.message, true);
-  } finally {
-    appStarting = false;
+    message("globalMessage", "Account load হয়নি: " + error.message, true);
   }
 }
-
-/* ---------- Profile & Wallet Balance ---------- */
 
 async function loadProfile() {
   if (!currentUser || !supabaseClient) return;
 
-  const { data: profile, error: profileError } = await supabaseClient
+  const { data: profile, error } = await supabaseClient
     .from("profiles")
-    .select("display_name, username, role")
+    .select("id, username, display_name, role")
     .eq("id", currentUser.id)
     .maybeSingle();
 
-  if (profileError) {
-    message("globalMessage", "Profile load হয়নি: " + profileError.message, true);
-    return;
-  }
+  if (error) throw error;
 
   currentProfile = profile;
 
@@ -315,107 +214,117 @@ async function loadProfile() {
     $("userName").textContent =
       profile?.display_name ||
       profile?.username ||
-      currentUser.email?.split("@")[0] ||
+      currentUser.email ||
       "User";
   }
 
-  const { data: transactions, error: walletError } = await supabaseClient
-    .from("wallet_transactions")
-    .select("amount")
-    .eq("user_id", currentUser.id);
+  const { data: transactions, error: walletError } =
+    await supabaseClient
+      .from("wallet_transactions")
+      .select("amount")
+      .eq("user_id", currentUser.id);
 
   if (walletError) {
-    if ($("balance")) $("balance").textContent = "Unavailable";
-    console.error("Wallet error:", walletError.message);
-    return;
+    if ($("balance")) $("balance").textContent = "৳--";
+    console.error("Wallet load error:", walletError.message);
+  } else {
+    const balance = (transactions || []).reduce(
+      (total, row) => total + Number(row.amount || 0),
+      0
+    );
+    if ($("balance")) $("balance").textContent = money(balance);
   }
 
-  const balance = (transactions || []).reduce(
-    (sum, row) => sum + Number(row.amount || 0),
-    0
-  );
+  const { count, error: countError } = await supabaseClient
+    .from("task_submissions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", currentUser.id);
 
-  if ($("balance")) $("balance").textContent = money(balance);
+  if (!countError && $("taskCount")) {
+    $("taskCount").textContent = String(count || 0);
+  }
 }
 
-/* ---------- User Task List ---------- */
-
 async function loadTasks() {
-  const taskList = $("taskList");
-  if (!taskList || !currentUser || !supabaseClient) return;
+  const list = $("taskList");
+  if (!list || !supabaseClient || !currentUser) return;
 
-  taskList.textContent = "Tasks load হচ্ছে...";
+  list.textContent = "Tasks load হচ্ছে...";
 
-  const { data, error } = await supabaseClient
+  const { data: tasks, error } = await supabaseClient
     .from("tasks")
-    .select("id, title, description, reward, task_url")
+    .select("id, title, description, reward, task_url, active")
     .eq("active", true)
     .order("created_at", { ascending: false });
 
   if (error) {
-    taskList.textContent = "Tasks load হয়নি। Database permissions চেক কর।";
-    console.error("Task load error:", error.message);
+    list.textContent = "Tasks load হয়নি: " + error.message;
     return;
   }
 
-  if ($("taskCount")) {
-    $("taskCount").textContent = String((data || []).length);
-  }
+  list.replaceChildren();
 
-  taskList.replaceChildren();
-
-  if (!data?.length) {
-    taskList.textContent = "এখনো কোনো task available নেই।";
+  if (!tasks?.length) {
+    list.textContent = "এখন কোনো active task নেই।";
     return;
   }
 
-  for (const task of data) {
-    const card = document.createElement("article");
-    card.className = "task-card";
+  for (const task of tasks) {
+    const card = document.createElement("div");
+    card.style.cssText =
+      "border:1px solid #ddd;border-radius:12px;padding:14px;margin:12px 0;";
 
-    card.append(
-      safeText("h3", task.title),
-      safeText("p", task.description || "Task details দেখ।"),
-      safeText("p", "Reward: " + money(task.reward))
-    );
+    const title = document.createElement("h3");
+    title.textContent = safeText(task.title);
+
+    const description = document.createElement("p");
+    description.textContent = safeText(task.description);
+
+    const reward = document.createElement("p");
+    reward.textContent = "Reward: " + money(task.reward);
+
+    card.append(title, description, reward);
 
     if (task.task_url) {
-      try {
-        const url = new URL(task.task_url);
-
-        if (url.protocol === "https:" || url.protocol === "http:") {
-          const link = safeText("a", "Open task");
-          link.href = url.href;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.className = "btn secondary";
-          card.append(link);
-        }
-      } catch (_) {}
+      const link = document.createElement("a");
+      link.href = task.task_url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "Open Task";
+      link.style.display = "inline-block";
+      link.style.marginBottom = "10px";
+      card.appendChild(link);
     }
 
     const form = document.createElement("form");
-    const label = safeText("label", "Task proof / completion details");
-    const proofInput = document.createElement("textarea");
+    form.style.marginTop = "10px";
 
-    proofInput.required = true;
-    proofInput.maxLength = 2000;
-    proofInput.placeholder = "কাজের সত্যিকারের প্রমাণ লিখ";
+    const proofLabel = document.createElement("label");
+    proofLabel.textContent = "Proof / কাজের বিবরণ";
 
-    const submit = safeText("button", "Submit for review");
+    const proof = document.createElement("textarea");
+    proof.required = true;
+    proof.maxLength = 3000;
+    proof.placeholder = "কাজের প্রমাণ বা বিবরণ লিখ...";
+    proof.style.cssText =
+      "display:block;width:100%;min-height:70px;margin:8px 0;";
+
+    const submit = document.createElement("button");
     submit.type = "submit";
-    submit.className = "btn primary";
+    submit.textContent = "Submit Task";
 
     const status = document.createElement("p");
-    status.setAttribute("aria-live", "polite");
 
-    form.append(label, proofInput, submit, status);
+    form.append(proofLabel, proof, submit, status);
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
 
-      const proof = proofInput.value.trim();
-      if (!proof || !currentUser) return;
+      const proofText = proof.value.trim();
+      if (!proofText) {
+        status.textContent = "Proof লিখতে হবে।";
+        return;
+      }
 
       submit.disabled = true;
       status.textContent = "Submitting...";
@@ -426,86 +335,70 @@ async function loadTasks() {
           .insert({
             task_id: task.id,
             user_id: currentUser.id,
-            proof_text: proof,
+            proof_text: proofText,
             status: "pending"
           });
 
         if (submitError) throw submitError;
 
-        status.textContent = "Submitted for review.";
-        status.style.color = "#20d6a1";
-        proofInput.value = "";
-      } catch (error) {
-        status.textContent = error.message || "Submission হয়নি।";
-        status.style.color = "#ff8585";
+        status.textContent = "Submission জমা হয়েছে; Admin review করবে।";
+        proof.value = "";
+        await loadProfile();
+      } catch (err) {
+        status.textContent = "Submit হয়নি: " + err.message;
       } finally {
         submit.disabled = false;
       }
     });
 
-    card.append(form);
-    taskList.append(card);
+    card.appendChild(form);
+    list.appendChild(card);
   }
-}
-
-/* ---------- END OF PART 1 ----------
-   Paste PART 2 immediately below this line.
-========================================== */
-   
-/* ==========================================
-   MECRO EARNING - COMPLETE APP.JS
-   PART 2 OF 2
-========================================== */
-
-/* ---------- Admin Panel ---------- */
-
+             }
+  
 async function loadAdmin() {
-  if (!currentUser || !supabaseClient) return;
+  const section = $("adminSection");
+  if (!section || !currentUser || !supabaseClient) return;
 
-  const { data, error } = await supabaseClient
+  section.hidden = true;
+
+  // Admin role database profile থেকে যাচাই করা হচ্ছে।
+  const { data: profile, error } = await supabaseClient
     .from("profiles")
     .select("role")
     .eq("id", currentUser.id)
     .maybeSingle();
 
   if (error) {
-    console.error("Admin role check failed:", error.message);
-    if ($("adminSection")) $("adminSection").hidden = true;
+    message("globalMessage", "Admin role যাচাই হয়নি: " + error.message, true);
     return;
   }
 
-  if (data?.role !== "admin") {
-    if ($("adminSection")) $("adminSection").hidden = true;
-    return;
+  currentProfile = { ...currentProfile, ...profile };
+
+  if (profile?.role !== "admin") return;
+
+  if (typeof window.createAdminPanel === "function") {
+    window.createAdminPanel();
+  } else if (typeof createAdminPanel === "function") {
+    createAdminPanel();
   }
 
-  currentProfile = { ...currentProfile, ...data };
-
-  if (typeof createAdminPanel !== "function") {
-    console.error("createAdminPanel function পাওয়া যায়নি।");
-    message("globalMessage", "Admin Panel setup অসম্পূর্ণ।", true);
-    return;
-  }
-
-  const section = createAdminPanel();
   section.hidden = false;
 
   await loadAdminTasks();
   await loadAdminSubmissions();
 }
 
-/* ---------- Load Admin Tasks ---------- */
-
-
 async function loadAdminTasks() {
-  const list = document.getElementById("adminTaskList");
+  const list = $("adminTaskList");
   if (!list || !supabaseClient) return;
 
-  list.textContent = "Loading tasks...";
+  list.textContent = "Tasks load হচ্ছে...";
 
-  const { data, error } = await supabaseClient
+  const { data: tasks, error } = await supabaseClient
     .from("tasks")
-    .select("id, title, reward, active")
+    .select("id, title, reward, active, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -513,138 +406,156 @@ async function loadAdminTasks() {
     return;
   }
 
-  list.innerHTML = "";
+  list.replaceChildren();
 
-  if (!data || data.length === 0) {
+  if (!tasks?.length) {
     list.textContent = "কোনো Task নেই।";
     return;
   }
 
-  data.forEach(task => {
-    const item = document.createElement("div");
-    item.style.cssText =
-      "padding:12px;margin:10px 0;border:1px solid #ccc;border-radius:8px;";
+  for (const task of tasks) {
+    const card = document.createElement("div");
+    card.style.cssText =
+      "padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;";
 
     const title = document.createElement("strong");
-    title.textContent = task.title + " — ৳" + task.reward;
+    title.textContent =
+      safeText(task.title) + " — " + money(task.reward);
 
     const status = document.createElement("p");
     status.textContent = task.active ? "Active" : "Inactive";
 
-    const btn = document.createElement("button");
-    btn.textContent = "Delete Task";
-    btn.style.cssText =
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "Delete Task";
+    deleteButton.style.cssText =
       "background:#dc2626;color:white;padding:8px 12px;border:0;border-radius:6px;";
 
-    btn.addEventListener("click", async () => {
-      if (!confirm("এই Task delete করতে চাস?")) return;
-
-      btn.disabled = true;
-
-      const { error: deleteError } = await supabaseClient
-        .from("tasks")
-        .delete()
-        .eq("id", task.id);
-
-      if (deleteError) {
-        alert("Delete হয়নি: " + deleteError.message);
-        btn.disabled = false;
+    deleteButton.addEventListener("click", async () => {
+      if (currentProfile?.role !== "admin") {
+        alert("Admin permission নেই।");
         return;
       }
 
-      alert("Task delete হয়েছে।");
-      await loadAdminTasks();
-      await loadTasks();
+      const confirmed = confirm(
+        '"' + task.title + '" delete করতে চাস? এই কাজটি ফিরিয়ে আনা নাও যেতে পারে।'
+      );
+      if (!confirmed) return;
+
+      deleteButton.disabled = true;
+
+      try {
+        const { error: deleteError } = await supabaseClient
+          .from("tasks")
+          .delete()
+          .eq("id", task.id)
+          .select("id");
+
+        if (deleteError) throw deleteError;
+
+        alert("Delete request পাঠানো হয়েছে।");
+        await loadAdminTasks();
+        await loadTasks();
+      } catch (err) {
+        alert(
+          "Task delete হয়নি: " + err.message +
+          "\nSupabase-এর DELETE RLS permission বা submission-এর foreign-key সম্পর্ক পরীক্ষা কর।"
+        );
+      } finally {
+        deleteButton.disabled = false;
+      }
     });
 
-    item.append(title, status, btn);
-    list.appendChild(item);
-  });
+    card.append(title, status, deleteButton);
+    list.appendChild(card);
+  }
 }
-
-
-/* ---------- Load Submissions ---------- */
 
 async function loadAdminSubmissions() {
   const list = $("adminSubmissionList");
-  if (!list || !currentUser || !supabaseClient) return;
+  if (!list || !supabaseClient) return;
 
   list.textContent = "Submissions load হচ্ছে...";
 
-  const { data, error } = await supabaseClient
+  const { data: submissions, error } = await supabaseClient
     .from("task_submissions")
     .select("id, task_id, user_id, proof_text, status, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
-    list.textContent = "Submissions load হয়নি।";
-    console.error("Submission load error:", error.message);
+    list.textContent = "Submissions load হয়নি: " + error.message;
     return;
   }
 
   list.replaceChildren();
 
-  if (!data?.length) {
-    list.textContent = "এখনো কোনো Submission নেই।";
+  if (!submissions?.length) {
+    list.textContent = "কোনো submission নেই।";
     return;
   }
 
-  for (const item of data) {
-    const card = document.createElement("article");
-    card.className = "task-card";
+  for (const submission of submissions) {
+    const card = document.createElement("div");
+    card.style.cssText =
+      "padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;";
 
-    card.append(
-      safeText("h4", "Status: " + item.status),
-      safeText("p", "User ID: " + item.user_id),
-      safeText("p", "Task ID: " + item.task_id),
-      safeText("p", "Proof: " + (item.proof_text || "কোনো proof দেওয়া হয়নি")),
-      safeText(
-        "p",
-        item.created_at
-          ? "Submitted: " + new Date(item.created_at).toLocaleString()
-          : ""
-      )
-    );
+    const heading = document.createElement("h4");
+    heading.textContent = "Submission: " + submission.id;
 
-    if (item.status === "pending") {
-      const approveBtn = safeText("button", "Approve");
-      approveBtn.type = "button";
-      approveBtn.className = "primary";
+    const taskInfo = document.createElement("p");
+    taskInfo.textContent = "Task ID: " + submission.task_id;
 
-      approveBtn.addEventListener("click", async () => {
-        await reviewSubmission(item.id, "approved", approveBtn);
+    const userInfo = document.createElement("p");
+    userInfo.textContent = "User ID: " + submission.user_id;
+
+    const proofInfo = document.createElement("p");
+    proofInfo.textContent = "Proof: " + safeText(submission.proof_text);
+
+    const statusInfo = document.createElement("p");
+    statusInfo.textContent = "Status: " + safeText(submission.status);
+
+    card.append(heading, taskInfo, userInfo, proofInfo, statusInfo);
+
+    if (submission.status === "pending") {
+      const acceptButton = document.createElement("button");
+      acceptButton.type = "button";
+      acceptButton.textContent = "Accept";
+      acceptButton.style.cssText =
+        "background:#15803d;color:white;padding:8px 12px;border:0;border-radius:6px;margin-right:8px;";
+
+      const rejectButton = document.createElement("button");
+      rejectButton.type = "button";
+      rejectButton.textContent = "Reject";
+      rejectButton.style.cssText =
+        "background:#dc2626;color:white;padding:8px 12px;border:0;border-radius:6px;";
+
+      acceptButton.addEventListener("click", () => {
+        reviewSubmission(submission.id, "approved", acceptButton);
       });
 
-      const rejectBtn = safeText("button", "Reject");
-      rejectBtn.type = "button";
-      rejectBtn.className = "danger";
-
-      rejectBtn.addEventListener("click", async () => {
-        await reviewSubmission(item.id, "rejected", rejectBtn);
+      rejectButton.addEventListener("click", () => {
+        reviewSubmission(submission.id, "rejected", rejectButton);
       });
 
-      card.append(approveBtn, rejectBtn);
+      card.append(acceptButton, rejectButton);
     }
 
-    list.append(card);
+    list.appendChild(card);
   }
 }
 
-/* ---------- Review Submission ---------- */
-
 async function reviewSubmission(id, newStatus, button) {
-  if (!currentUser || !supabaseClient) return;
+  if (currentProfile?.role !== "admin") {
+    alert("Admin permission নেই।");
+    return;
+  }
+
   if (!["approved", "rejected"].includes(newStatus)) return;
 
-  const confirmed = confirm(
-    newStatus === "approved"
-      ? "এই Submission approve করতে চাস?"
-      : "এই Submission reject করতে চাস?"
-  );
+  const action = newStatus === "approved" ? "Accept" : "Reject";
+  if (!confirm("এই submission " + action + " করবি?")) return;
 
-  if (!confirmed) return;
-
-  button.disabled = true;
+  if (button) button.disabled = true;
 
   try {
     const { data, error } = await supabaseClient
@@ -652,136 +563,115 @@ async function reviewSubmission(id, newStatus, button) {
       .update({ status: newStatus })
       .eq("id", id)
       .eq("status", "pending")
-      .select("id")
+      .select("id, status")
       .maybeSingle();
 
     if (error) throw error;
 
     if (!data) {
-      alert(
-        "Status বদলায়নি। Submission আগে review হয়েছে কি না এবং Admin UPDATE permission চেক কর।"
-      );
+      alert("Status বদলায়নি। Submission আগে review হয়েছে কি না এবং UPDATE RLS permission পরীক্ষা কর।");
       return;
     }
 
-    alert(
-      newStatus === "approved"
-        ? "Submission approved হয়েছে। Wallet-এ টাকা এখনো যোগ হয়নি।"
-        : "Submission rejected হয়েছে।"
-    );
-
+    alert("Submission " + newStatus + " হয়েছে।");
     await loadAdminSubmissions();
-  } catch (error) {
-    console.error("Review error:", error);
-    alert("Review ব্যর্থ: " + (error.message || "Database error"));
+    await loadProfile();
+  } catch (err) {
+    alert("Review হয়নি: " + err.message);
   } finally {
-    button.disabled = false;
+    if (button) button.disabled = false;
   }
-}
-
-/* ---------- Wallet History ---------- */
-
+             }
+     
 async function loadHistory() {
-  const history = $("historyList");
-  if (!history || !currentUser || !supabaseClient) return;
+  const list = $("historyList");
+  if (!list || !supabaseClient || !currentUser) return;
 
-  history.textContent = "History load হচ্ছে...";
+  list.textContent = "History load হচ্ছে...";
 
   const { data, error } = await supabaseClient
     .from("wallet_transactions")
     .select("amount, reason, created_at")
     .eq("user_id", currentUser.id)
-    .order("created_at", { ascending: false })
-    .limit(30);
+    .order("created_at", { ascending: false });
 
   if (error) {
-    history.textContent = "History load হয়নি।";
-    console.error("History error:", error.message);
+    list.textContent = "History load হয়নি: " + error.message;
     return;
   }
 
-  history.replaceChildren();
+  list.replaceChildren();
 
   if (!data?.length) {
-    history.textContent = "এখনো কোনো transaction নেই।";
+    list.textContent = "এখনো কোনো wallet transaction নেই।";
     return;
   }
 
-  for (const item of data) {
-    const row = document.createElement("article");
-    row.className = "history-item";
+  for (const row of data) {
+    const item = document.createElement("div");
+    item.style.cssText =
+      "padding:10px;border-bottom:1px solid #ddd;";
 
-    row.append(
-      safeText(
-        "strong",
-        (Number(item.amount) >= 0 ? "+" : "") + money(item.amount)
-      ),
-      safeText("p", item.reason || "Wallet transaction"),
-      safeText(
-        "p",
-        item.created_at
-          ? new Date(item.created_at).toLocaleString()
-          : ""
-      )
-    );
+    const reason = document.createElement("p");
+    reason.textContent = safeText(row.reason || "Transaction");
 
-    history.append(row);
+    const amount = document.createElement("strong");
+    amount.textContent = money(row.amount);
+
+    const date = document.createElement("small");
+    date.textContent = row.created_at
+      ? new Date(row.created_at).toLocaleString()
+      : "";
+
+    item.append(reason, amount, document.createElement("br"), date);
+    list.appendChild(item);
   }
 }
-
-/* ---------- Withdrawal Request ---------- */
 
 async function handleWithdrawal(event) {
   event.preventDefault();
 
-  if (!currentUser || !supabaseClient) {
+  if (!supabaseClient || !currentUser) {
     message("withdrawMessage", "আগে Login কর।", true);
     return;
   }
 
   const amount = Number($("withdrawAmount")?.value);
-  const paymentNumber = $("paymentNumber")?.value.trim() || "";
+  const paymentNumber = $("paymentNumber")?.value.trim();
 
   if (!Number.isFinite(amount) || amount <= 0) {
-    message("withdrawMessage", "সঠিক amount লিখ।", true);
+    message("withdrawMessage", "সঠিক withdrawal amount দে।", true);
     return;
   }
 
-  if (!/^01[3-9]\d{8}$/.test(paymentNumber)) {
-    message("withdrawMessage", "সঠিক বাংলাদেশি মোবাইল নম্বর লিখ।", true);
+  if (!paymentNumber) {
+    message("withdrawMessage", "Payment number দে।", true);
     return;
   }
 
-  const button = $("withdrawForm")?.querySelector(
-    'button[type="submit"]'
-  );
-
+  const form = $("withdrawForm");
+  const button = form?.querySelector('button[type="submit"]');
   if (button) button.disabled = true;
 
-  message("withdrawMessage", "Request পাঠানো হচ্ছে...");
+  message("withdrawMessage", "Withdrawal request পাঠানো হচ্ছে...");
 
   try {
-    const { error } = await supabaseClient.rpc(
-      "request_withdrawal",
-      {
-        p_amount: amount,
-        p_payment_number: paymentNumber
-      }
-    );
+    const { error } = await supabaseClient.rpc("request_withdrawal", {
+      p_amount: amount,
+      p_payment_number: paymentNumber
+    });
 
     if (error) throw error;
 
-    message("withdrawMessage", "Request জমা হয়েছে। Admin review করবে।");
-    $("withdrawForm").reset();
-
+    message("withdrawMessage", "Withdrawal request জমা হয়েছে।");
+    form?.reset();
     await loadProfile();
     await loadHistory();
-  } catch (error) {
-    console.error("Withdrawal error:", error);
-
+  } catch (err) {
     message(
       "withdrawMessage",
-      "Withdrawal request ব্যর্থ: " + (error.message || "Database error"),
+      "Request হয়নি: " + err.message +
+      " — request_withdrawal database function ও তার permission পরীক্ষা কর।",
       true
     );
   } finally {
@@ -789,72 +679,88 @@ async function handleWithdrawal(event) {
   }
 }
 
-/* ---------- Logout ---------- */
-
 async function logout() {
   if (!supabaseClient) return;
 
   const { error } = await supabaseClient.auth.signOut();
 
   if (error) {
-    message("globalMessage", error.message, true);
+    message("globalMessage", "Logout হয়নি: " + error.message, true);
     return;
   }
 
-  showLoggedOut();
-  showAuth("login");
+  currentUser = null;
+  currentProfile = null;
+
+  if ($("dashboard")) $("dashboard").hidden = true;
+  if ($("adminSection")) $("adminSection").hidden = true;
+  if ($("authSection")) $("authSection").hidden = false;
+
+  message("globalMessage", "Logout সফল হয়েছে।");
+  message("authMessage", "");
 }
 
-/* ---------- Initialize ---------- */
+function bindClick(id, handler) {
+  const el = $(id);
+  if (!el || el.dataset.bound === "true") return;
 
-async function init() {
-  const bindClick = (id, callback) => {
-    const element = $(id);
-    if (element) element.addEventListener("click", callback);
-  };
+  el.dataset.bound = "true";
+  el.addEventListener("click", handler);
+}
 
-  bindClick("showSignup", () => showAuth("signup"));
-  bindClick("showLogin", () => showAuth("login"));
-  bindClick("heroSignup", () => showAuth("signup"));
-  bindClick("heroLogin", () => showAuth("login"));
+function init() {
+  if (!setupSupabase()) return;
 
+  const authForm = $("authForm");
+  if (authForm && authForm.dataset.bound !== "true") {
+    authForm.dataset.bound = "true";
+    authForm.addEventListener("submit", handleAuth);
+  }
+
+  bindClick("showSignup", () => setAuthMode("signup"));
+  bindClick("showLogin", () => setAuthMode("login"));
   bindClick("googleLogin", googleLogin);
   bindClick("googleLoginBtn", googleLogin);
   bindClick("logoutBtn", logout);
 
-  if ($("authForm")) {
-    $("authForm").addEventListener("submit", handleAuth);
+  const withdrawForm = $("withdrawForm");
+  if (withdrawForm && withdrawForm.dataset.bound !== "true") {
+    withdrawForm.dataset.bound = "true";
+    withdrawForm.addEventListener("submit", handleWithdrawal);
   }
 
-  if ($("withdrawForm")) {
-    $("withdrawForm").addEventListener("submit", handleWithdrawal);
-  }
+  setAuthMode("login");
 
-  if (!setupSupabase()) return;
+  supabaseClient.auth.getSession().then(async ({ data, error }) => {
+    if (error) {
+      message("globalMessage", "Session load হয়নি: " + error.message, true);
+      return;
+    }
 
-  const { data, error } = await supabaseClient.auth.getSession();
-
-  if (error) {
-    message("globalMessage", error.message, true);
-    return;
-  }
-
-  if (data.session?.user) {
-    await startApp(data.session.user);
-  } else {
-    showLoggedOut();
-    showAuth("signup");
-  }
+    if (data.session?.user) {
+      await startApp(data.session.user);
+    } else {
+      if ($("authSection")) $("authSection").hidden = false;
+      if ($("dashboard")) $("dashboard").hidden = true;
+    }
+  }).catch(err => {
+    message("globalMessage", "সমস্যা: " + err.message, true);
+  });
 
   supabaseClient.auth.onAuthStateChange((event, session) => {
     if (event === "SIGNED_OUT") {
-      showLoggedOut();
-    } else if (event === "SIGNED_IN" && session?.user) {
-      setTimeout(() => {
-        startApp(session.user);
-      }, 0);
+      currentUser = null;
+      currentProfile = null;
+      if ($("dashboard")) $("dashboard").hidden = true;
+      if ($("adminSection")) $("adminSection").hidden = true;
+      if ($("authSection")) $("authSection").hidden = false;
     }
   });
 }
 
-document.addEventListener("DOMContentLoaded", init);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init, { once: true });
+} else {
+  init();
+       }
+            
