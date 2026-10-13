@@ -641,6 +641,18 @@ async function loadAdmin() {
     .maybeSingle();
 
   if (error) {
+/* ---------- Admin Panel ---------- */
+
+async function loadAdmin() {
+  if (!currentUser || !supabaseClient) return;
+
+  const { data, error } = await supabaseClient
+    .from("profiles")
+    .select("role")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+
+  if (error) {
     console.error("Admin role check failed:", error.message);
     if ($("adminSection")) $("adminSection").hidden = true;
     return;
@@ -655,6 +667,7 @@ async function loadAdmin() {
   section.hidden = false;
 
   await loadAdminTasks();
+  await loadAdminSubmissions();
 }
 
 async function loadAdminTasks() {
@@ -695,6 +708,86 @@ async function loadAdminTasks() {
   }
 }
 
+async function loadAdminSubmissions() {
+  const list = $("adminSubmissionList");
+  if (!list || !currentUser || !supabaseClient) return;
+
+  list.textContent = "Submissions load হচ্ছে...";
+
+  const { data, error } = await supabaseClient
+    .from("task_submissions")
+    .select("id, task_id, user_id, proof_text, status, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    list.textContent = "Submissions load হয়নি।";
+    console.error("Submission load error:", error.message);
+    return;
+  }
+
+  list.replaceChildren();
+
+  if (!data?.length) {
+    list.textContent = "এখনো কোনো Submission নেই।";
+    return;
+  }
+
+  for (const item of data) {
+    const card = document.createElement("article");
+    card.className = "task-card";
+
+    card.append(
+      safeText("h4", "Status: " + item.status),
+      safeText("p", "User ID: " + item.user_id),
+      safeText("p", "Task ID: " + item.task_id),
+      safeText("p", "Proof: " + (item.proof_text || "কোনো proof দেওয়া হয়নি"))
+    );
+
+    if (item.status === "pending") {
+      const approveBtn = document.createElement("button");
+      approveBtn.type = "button";
+      approveBtn.textContent = "Approve";
+
+      approveBtn.addEventListener("click", async () => {
+        await reviewSubmission(item.id, "approved", approveBtn);
+      });
+
+      const rejectBtn = document.createElement("button");
+      rejectBtn.type = "button";
+      rejectBtn.textContent = "Reject";
+
+      rejectBtn.addEventListener("click", async () => {
+        await reviewSubmission(item.id, "rejected", rejectBtn);
+      });
+
+      card.append(approveBtn, rejectBtn);
+    }
+
+    list.append(card);
+  }
+}
+
+async function reviewSubmission(id, newStatus, button) {
+  if (!currentUser || !supabaseClient) return;
+
+  button.disabled = true;
+
+  const { error } = await supabaseClient
+    .from("task_submissions")
+    .update({ status: newStatus })
+    .eq("id", id)
+    .eq("status", "pending");
+
+  if (error) {
+    console.error("Review error:", error.message);
+    alert("Status update হয়নি। Database permission পরীক্ষা কর।");
+    button.disabled = false;
+    return;
+  }
+
+  alert("Submission " + newStatus + " হয়েছে।");
+  await loadAdminSubmissions();
+}
 /* ---------- Wallet History ---------- */
 
 async function loadHistory() {
