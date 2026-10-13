@@ -496,11 +496,12 @@ async function loadAdmin() {
 
 /* ---------- Load Admin Tasks ---------- */
 
-async function loadAdminTasks() {
-  const list = $("adminTaskList");
-  if (!list || !currentUser || !supabaseClient) return;
 
-  list.textContent = "Tasks load হচ্ছে...";
+async function loadAdminTasks() {
+  const list = document.getElementById("adminTaskList");
+  if (!list || !supabaseClient) return;
+
+  list.textContent = "Loading tasks...";
 
   const { data, error } = await supabaseClient
     .from("tasks")
@@ -508,31 +509,59 @@ async function loadAdminTasks() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    list.textContent = "Admin task list load হয়নি।";
-    console.error("Admin task list error:", error.message);
+    list.textContent = "Tasks load হয়নি: " + error.message;
     return;
   }
 
-  list.replaceChildren();
+  list.innerHTML = "";
 
-  if (!data?.length) {
-    list.textContent = "এখনো কোনো Task তৈরি হয়নি।";
+  if (!data || data.length === 0) {
+    list.textContent = "কোনো Task নেই।";
     return;
   }
 
-  for (const task of data) {
-    const card = document.createElement("article");
-    card.className = "task-card";
+  data.forEach(task => {
+    const item = document.createElement("div");
+    item.style.cssText =
+      "padding:12px;margin:10px 0;border:1px solid #ccc;border-radius:8px;";
 
-    card.append(
-      safeText("h4", task.title),
-      safeText("p", "Reward: " + money(task.reward)),
-      safeText("p", task.active ? "Active" : "Inactive")
-    );
+    const title = document.createElement("strong");
+    title.textContent = task.title + " — ৳" + task.reward;
 
-    list.append(card);
-  }
+    const status = document.createElement("p");
+    status.textContent = task.active ? "Active" : "Inactive";
+
+    const btn = document.createElement("button");
+    btn.textContent = "Delete Task";
+    btn.style.cssText =
+      "background:#dc2626;color:white;padding:8px 12px;border:0;border-radius:6px;";
+
+    btn.addEventListener("click", async () => {
+      if (!confirm("এই Task delete করতে চাস?")) return;
+
+      btn.disabled = true;
+
+      const { error: deleteError } = await supabaseClient
+        .from("tasks")
+        .delete()
+        .eq("id", task.id);
+
+      if (deleteError) {
+        alert("Delete হয়নি: " + deleteError.message);
+        btn.disabled = false;
+        return;
+      }
+
+      alert("Task delete হয়েছে।");
+      await loadAdminTasks();
+      await loadTasks();
+    });
+
+    item.append(title, status, btn);
+    list.appendChild(item);
+  });
 }
+
 
 /* ---------- Load Submissions ---------- */
 
