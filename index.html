@@ -1,0 +1,278 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101827">
+  <meta name="description" content="MECRO EARNING - Online task and rewards platform">
+  <title>MECRO EARNING</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="container nav">
+      <a class="logo" href="#home">MECRO<span>EARNING</span></a>
+
+      <button id="menuBtn" class="btn secondary" type="button">
+        Account
+      </button>
+    </div>
+  </header>
+
+  <main class="container" id="home">
+
+    <section class="hero">
+      <p class="eyebrow">WELCOME TO MECRO</p>
+      <h1>Earn by completing <span>tasks</span></h1>
+      <p class="hero-text">
+        Explore available tasks, submit your work for review,
+        and track your account activity.
+      </p>
+
+      <div class="hero-actions">
+        <button
+          class="btn primary"
+          type="button"
+          id="showSignup">
+          Create Account
+        </button>
+
+        <button
+          class="btn secondary"
+          type="button"
+          id="showLogin">
+          Log In
+        </button>
+      </div>
+    </section>
+
+    <p id="globalMessage" class="message" aria-live="polite"></p>
+
+    <!-- AUTH SECTION -->
+
+    <section id="authSection" class="panel">
+      <div class="section-heading">
+        <p class="eyebrow">YOUR ACCOUNT</p>
+        <h2 id="authTitle">Create your account</h2>
+        <p>Sign up or log in to access your dashboard.</p>
+      </div>
+
+      <form id="authForm">
+        <div class="form-group">
+          <label for="name">Your name</label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            placeholder="Enter your name"
+            autocomplete="name"
+            maxlength="80">
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email address</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="At least 6 characters"
+            minlength="6"
+            autocomplete="new-password"
+            required>
+        </div>
+
+        <button
+          id="authSubmit"
+          class="btn primary full"
+          type="submit">
+          Create account
+        </button>
+
+        <p id="authMessage" class="message" aria-live="polite"></p>
+      </form>
+
+      <div class="auth-switch">
+        <button
+          type="button"
+          class="text-btn"
+          id="heroSignup">
+          Create an account
+        </button>
+
+        <button
+          type="button"
+          class="text-btn"
+          id="heroLogin">
+          Already registered? Log in
+        </button>
+      </div>
+    </section>
+
+    <!-- USER DASHBOARD -->
+
+    <section id="dashboard" hidden>
+
+      <div class="section-heading">
+        <p class="eyebrow">YOUR DASHBOARD</p>
+        <h2>Welcome, <span id="userName">User</span>!</h2>
+        <p>Manage your account and view your activity.</p>
+      </div>
+
+      <div class="stats-grid">
+        <article class="stat-card">
+          <p>Available balance</p>
+          <h3 id="balance">৳0.00</h3>
+        </article>
+
+        <article class="stat-card">
+          <p>Available tasks</p>
+          <h3 id="taskCount">0</h3>
+        </article>
+      </div>
+
+      <!-- TASKS -->
+
+      <section class="panel">
+        <div class="section-heading">
+          <p class="eyebrow">AVAILABLE WORK</p>
+          <h2>Tasks</h2>
+          <p>Complete genuine tasks and submit your work for review.</p>
+        </div>
+
+        <div id="taskList">
+          Loading tasks...
+        </div>
+      </section>
+
+      <!-- WITHDRAWAL -->
+
+      <section class="panel">
+        <div class="section-heading">
+          <p class="eyebrow">PAYMENTS</p>
+          <h2>Withdrawal request</h2>
+          <p>
+            Submit a request for review. A request does not guarantee
+            payment; eligibility and available funds must be verified.
+          </p>
+        </div>
+
+        <form id="withdrawForm">
+          <div class="form-group">
+            <label for="withdrawAmount">Amount (BDT)</label>
+            <input
+              type="number"
+              id="withdrawAmount"
+              name="amount"
+              min="1"
+              step="0.01"
+              placeholder="Enter amount"
+              required>
+          </div>
+
+          <div class="form-group">
+            <label for="paymentNumber">bKash mobile number</label>
+            <input
+              type="tel"
+              id="paymentNumber"
+              name="paymentNumber"
+              inputmode="numeric"
+              pattern="01[3-9][0-9]{8}"
+              maxlength="11"
+              placeholder="01XXXXXXXXX"
+              required>
+          </div>
+
+          <button
+            class="btn primary full"
+            type="submit">
+            Request withdrawal
+          </button>
+
+          <p
+            id="withdrawMessage"
+            class="message"
+            aria-live="polite">
+          </p>
+        </form>
+      </section>
+
+      <!-- TRANSACTION HISTORY -->
+
+      <section class="panel">
+        <div class="section-heading">
+          <p class="eyebrow">ACCOUNT ACTIVITY</p>
+          <h2>Wallet history</h2>
+        </div>
+
+        <div id="historyList">
+          No transactions yet.
+        </div>
+      </section>
+
+      <!-- ADMIN SECTION -->
+
+      <section id="adminSection" class="panel" hidden>
+        <div class="section-heading">
+          <p class="eyebrow">ADMINISTRATION</p>
+          <h2>Admin panel</h2>
+        </div>
+
+        <div id="adminContent">
+          Admin tools are not configured yet.
+        </div>
+      </section>
+
+      <button
+        id="logoutBtn"
+        class="btn danger full"
+        type="button">
+        Log out
+      </button>
+
+    </section>
+
+    <!-- ABOUT -->
+
+    <section class="panel about" id="about">
+      <p class="eyebrow">ABOUT MECRO</p>
+      <h2>Useful tasks, made simple.</h2>
+      <p>
+        MECRO EARNING is a task platform concept designed to help users
+        view available work, submit completion details, and track
+        account activity.
+      </p>
+      <p>
+        Rewards are available only when legitimate tasks, funding,
+        verification, and payment arrangements have been established.
+      </p>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <a class="logo" href="#home">MECRO<span>EARNING</span></a>
+      <p>Simple tools. Clear records. Responsible rewards.</p>
+      <p>&copy; 2026 MECRO EARNING. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Supabase must load before app.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>
