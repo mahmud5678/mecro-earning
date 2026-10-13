@@ -1,247 +1,513 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#101827">
-  <meta name="description" content="MECRO EARNING - Online task and rewards platform">
+  <meta name="description" content="MECRO EARNING - Online task platform">
   <title>MECRO EARNING</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
 
-  <header class="header">
-    <div class="container nav">
-      <a class="logo" href="#home">MECRO<span>EARNING</span></a>
-      <button id="menuBtn" class="btn secondary" type="button">
-        Account
-      </button>
+  <style>
+    :root {
+      --bg: #101827;
+      --panel: #192538;
+      --panel2: #202f45;
+      --text: #f2f6fc;
+      --muted: #a9b7cb;
+      --green: #20d6a1;
+      --blue: #6095ff;
+      --red: #ff8585;
+      --border: #34445a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: #101827f5;
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px;
+    }
+
+    .nav {
+      max-width: 1000px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      font-size: 23px;
+      font-weight: 800;
+      color: var(--green);
+      letter-spacing: 1px;
+    }
+
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    a { color: var(--blue); }
+
+    nav a {
+      color: var(--text);
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    main {
+      max-width: 1000px;
+      margin: auto;
+      padding: 22px 14px 50px;
+    }
+
+    .hero {
+      padding: 38px 20px;
+      text-align: center;
+      background: linear-gradient(135deg, #1d3850, #192538);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      margin-bottom: 22px;
+    }
+
+    .hero h1 {
+      font-size: clamp(30px, 7vw, 48px);
+      margin: 0 0 10px;
+    }
+
+    .hero p, .muted { color: var(--muted); }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      margin: 18px 0;
+      min-width: 0;
+    }
+
+    h2, h3 { margin-top: 0; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+      gap: 14px;
+    }
+
+    .stat {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      padding: 18px;
+      border-radius: 12px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 24px;
+      color: var(--green);
+      overflow-wrap: anywhere;
+    }
+
+    label {
+      display: block;
+      margin: 12px 0 5px;
+      font-weight: 600;
+    }
+
+    input, textarea, select {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      background: #101827;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 12px;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    input[type="checkbox"] {
+      display: inline-block;
+      width: auto;
+    }
+
+    button, .btn {
+      display: inline-block;
+      border: 0;
+      border-radius: 9px;
+      padding: 11px 16px;
+      margin: 8px 5px 0 0;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    button:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .primary {
+      color: #071a17;
+      background: var(--green);
+    }
+
+    .secondary {
+      color: white;
+      background: #354760;
+    }
+
+    .danger {
+      color: white;
+      background: #a83248;
+    }
+
+    .task-card, .history-item {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 15px;
+      margin: 12px 0;
+      overflow-wrap: anywhere;
+    }
+
+    .task-card h3, .task-card h4 { margin-top: 0; }
+
+    .status {
+      color: var(--green);
+      min-height: 24px;
+    }
+
+    .error { color: var(--red); }
+
+    .hidden, [hidden] { display: none !important; }
+
+    footer {
+      text-align: center;
+      padding: 25px 14px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 480px) {
+      header { padding: 12px; }
+      .panel { padding: 15px; }
+      .hero { padding: 28px 14px; }
+      nav { gap: 10px; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="nav">
+      <div class="brand">MECRO</div>
+      <nav>
+        <a href="#home">Home</a>
+        <a href="#services">Services</a>
+        <a href="#authSection">Account</a>
+        <a href="#dashboard">Dashboard</a>
+      </nav>
     </div>
   </header>
 
-  <main class="container" id="home">
-
-    <section class="hero">
-      <p class="eyebrow">WELCOME TO MECRO</p>
-      <h1>Earn by completing <span>tasks</span></h1>
-      <p class="hero-text">
-        Explore available tasks, submit your work for review,
-        and track your account activity.
-      </p>
-
-      <div class="hero-actions">
-        <button class="btn primary" type="button" id="showSignup">
-          Create Account
-        </button>
-        <button class="btn secondary" type="button" id="showLogin">
-          Log In
-        </button>
-      </div>
-    </section>
-
-    <p id="globalMessage" class="message" aria-live="polite"></p>
-
-    <!-- AUTH SECTION -->
-    <section id="authSection" class="panel">
-      <div class="section-heading">
-        <p class="eyebrow">YOUR ACCOUNT</p>
-        <h2 id="authTitle">Create your account</h2>
-        <p>Sign up or log in to access your dashboard.</p>
-      </div>
-
-      <!-- Google authentication -->
-      <div class="google-auth">
-        <button
-          id="googleLoginBtn"
-          class="btn secondary full"
-          type="button">
-          🌐 Continue with Google
-        </button>
-        <p class="google-note">Quick and easy Google sign-in</p>
-      </div>
-
-      <div class="auth-divider">
-        <span>OR CONTINUE WITH EMAIL</span>
-      </div>
-
-      <form id="authForm">
-        <div class="form-group">
-          <label for="name">Your name</label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            placeholder="Enter your name"
-            autocomplete="name"
-            maxlength="80">
-        </div>
-
-        <div class="form-group">
-          <label for="email">Email address</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            placeholder="you@example.com"
-            autocomplete="email"
-            required>
-        </div>
-
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            placeholder="At least 6 characters"
-            minlength="6"
-            autocomplete="current-password"
-            required>
-        </div>
-
-        <button id="authSubmit" class="btn primary full" type="submit">
-          Create account
-        </button>
-
-        <p id="authMessage" class="message" aria-live="polite"></p>
-      </form>
-
-      <div class="auth-switch">
-        <button type="button" class="text-btn" id="heroSignup">
-          Create an account
-        </button>
-        <button type="button" class="text-btn" id="heroLogin">
-          Already registered? Log in
-        </button>
-      </div>
-    </section>
-
-    <!-- USER DASHBOARD -->
-    <section id="dashboard" hidden>
-      <div class="section-heading">
-        <p class="eyebrow">YOUR DASHBOARD</p>
-        <h2>Welcome, <span id="userName">User</span>!</h2>
-        <p>Manage your account and view your activity.</p>
-      </div>
-
-      <div class="stats-grid">
-        <article class="stat-card">
-          <p>Available balance</p>
-          <h3 id="balance">৳0.00</h3>
-        </article>
-        <article class="stat-card">
-          <p>Available tasks</p>
-          <h3 id="taskCount">0</h3>
-        </article>
-      </div>
-
-      <!-- TASKS -->
-      <section class="panel">
-        <div class="section-heading">
-          <p class="eyebrow">AVAILABLE WORK</p>
-          <h2>Tasks</h2>
-          <p>Complete genuine tasks and submit your work for review.</p>
-        </div>
-        <div id="taskList">Loading tasks...</div>
-      </section>
-
-      <!-- WITHDRAWAL -->
-      <section class="panel">
-        <div class="section-heading">
-          <p class="eyebrow">PAYMENTS</p>
-          <h2>Withdrawal request</h2>
-          <p>
-            Submit a request for review. A request does not guarantee
-            payment; eligibility and available funds must be verified.
-          </p>
-        </div>
-
-        <form id="withdrawForm">
-          <div class="form-group">
-            <label for="withdrawAmount">Amount (BDT)</label>
-            <input
-              type="number"
-              id="withdrawAmount"
-              name="amount"
-              min="1"
-              step="0.01"
-              placeholder="Enter amount"
-              required>
-          </div>
-
-          <div class="form-group">
-            <label for="paymentNumber">bKash mobile number</label>
-            <input
-              type="tel"
-              id="paymentNumber"
-              name="paymentNumber"
-              inputmode="numeric"
-              pattern="01[3-9][0-9]{8}"
-              maxlength="11"
-              placeholder="01XXXXXXXXX"
-              required>
-          </div>
-
-          <button class="btn primary full" type="submit">
-            Request withdrawal
-          </button>
-          <p id="withdrawMessage" class="message" aria-live="polite"></p>
-        </form>
-      </section>
-
-      <!-- TRANSACTION HISTORY -->
-      <section class="panel">
-        <div class="section-heading">
-          <p class="eyebrow">ACCOUNT ACTIVITY</p>
-          <h2>Wallet history</h2>
-        </div>
-        <div id="historyList">No transactions yet.</div>
-      </section>
-
-      <!-- ADMIN SECTION -->
-      <section id="adminSection" class="panel" hidden>
-        <div class="section-heading">
-          <p class="eyebrow">ADMINISTRATION</p>
-          <h2>Admin panel</h2>
-        </div>
-        <div id="adminContent">
-          Admin tools are not configured yet.
-        </div>
-      </section>
-
-      <button id="logoutBtn" class="btn danger full" type="button">
-        Log out
+  <main>
+    <section class="hero" id="home">
+      <h1>MECRO EARNING</h1>
+      <p>Complete tasks, submit proof and track your activity.</p>
+      <button type="button" class="primary" id="heroSignup">
+        Create account
+      </button>
+      <button type="button" class="secondary" id="heroLogin">
+        Log in
       </button>
     </section>
 
-    <!-- ABOUT -->
-    <section class="panel about" id="about">
-      <p class="eyebrow">ABOUT MECRO</p>
-      <h2>Useful tasks, made simple.</h2>
-      <p>
-        MECRO EARNING is a task platform concept designed to help users
-        view available work, submit completion details, and track
-        account activity.
-      </p>
-      <p>
-        Rewards are available only when legitimate tasks, funding,
-        verification, and payment arrangements have been established.
+    <section class="panel" id="services">
+      <h2>Welcome to MECRO</h2>
+      <p class="muted">
+        A simple online task platform. Read each task carefully and
+        submit truthful completion details for review.
       </p>
     </section>
 
+    <section class="panel" id="authSection">
+      <h2 id="authTitle">Create your account</h2>
+
+      <form id="authForm">
+        <label for="name">Your name</label>
+        <input id="name" name="name" type="text"
+          maxlength="80" autocomplete="name"
+          placeholder="Enter your name">
+
+        <label for="email">Email address</label>
+        <input id="email" name="email" type="email"
+          autocomplete="email" required
+          placeholder="you@example.com">
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password"
+          minlength="6" autocomplete="new-password"
+          required placeholder="At least 6 characters">
+
+        <button type="submit" class="primary" id="authSubmit">
+          Create account
+        </button>
+      </form>
+
+      <p id="authMessage" class="status" aria-live="polite"></p>
+
+      <button type="button" class="secondary" id="showSignup">
+        Sign up
+      </button>
+      <button type="button" class="secondary" id="showLogin">
+        Log in instead
+      </button>
+      <button type="button" class="secondary" id="googleLogin">
+        Continue with Google
+      </button>
+    </section>
+
+    <p id="globalMessage" class="status" aria-live="polite"></p>
+
+    <section id="dashboard" hidden>
+      <div class="panel">
+        <h2>Welcome, <span id="userName">User</span>!</h2>
+        <p class="muted">Your MECRO account dashboard</p>
+
+        <div class="grid">
+          <div class="stat">
+            <span>Available balance</span>
+            <strong id="balance">৳0.00</strong>
+          </div>
+          <div class="stat">
+            <span>Available tasks</span>
+            <strong id="taskCount">0</strong>
+          </div>
+        </div>
+
+        <button type="button" class="secondary" id="googleLoginBtn">
+          Google Login
+        </button>
+        <button type="button" class="danger" id="logoutBtn">
+          Log out
+        </button>
+      </div>
+
+      <section class="panel">
+        <h2>Available Tasks</h2>
+        <p class="muted">
+          Complete the task and provide accurate proof.
+          Submissions are reviewed before approval.
+        </p>
+        <div id="taskList">
+          Tasks will appear here after login.
+        </div>
+        </section>
+      
+      <section class="panel">
+        <h2>Wallet History</h2>
+        <div id="historyList">
+          Wallet transactions will appear here.
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Withdraw Funds</h2>
+        <p class="muted">
+          Withdrawal requests are subject to review and eligibility.
+        </p>
+
+        <form id="withdrawForm">
+          <label for="withdrawAmount">Amount (BDT)</label>
+          <input id="withdrawAmount" name="amount"
+            type="number" min="1" step="0.01" required>
+
+          <label for="paymentNumber">Payment mobile number</label>
+          <input id="paymentNumber" name="paymentNumber"
+            type="tel" inputmode="numeric"
+            placeholder="01XXXXXXXXX" required>
+
+          <button class="primary" type="submit">
+            Request withdrawal
+          </button>
+        </form>
+
+        <p id="withdrawMessage" class="status"
+          aria-live="polite"></p>
+      </section>
+
+      <section id="adminSection" class="panel" hidden>
+        <h2>MECRO Admin Panel</h2>
+
+        <form id="adminTaskForm">
+          <label for="adminTaskTitle">Task title</label>
+          <input id="adminTaskTitle" maxlength="150" required>
+
+          <label for="adminTaskDescription">Task description</label>
+          <textarea id="adminTaskDescription"
+            maxlength="3000" required></textarea>
+
+          <label for="adminTaskReward">Reward (BDT)</label>
+          <input id="adminTaskReward" type="number"
+            min="0.01" step="0.01" required>
+
+          <label for="adminTaskUrl">Task URL (optional)</label>
+          <input id="adminTaskUrl" type="url"
+            placeholder="https://example.com">
+
+          <label>
+            <input id="adminTaskActive" type="checkbox" checked>
+            Task active
+          </label>
+
+          <button type="submit" class="primary">
+            Add Task
+          </button>
+
+          <p id="adminTaskMessage" class="status"
+            aria-live="polite"></p>
+        </form>
+
+        <hr>
+
+        <h3>Existing Tasks</h3>
+        <div id="adminTaskList"></div>
+
+        <hr>
+
+        <h3>Pending Submissions</h3>
+        <div id="adminSubmissionList"></div>
+      </section>
+    </section>
   </main>
 
-  <footer class="footer">
-    <div class="container">
-      <a class="logo" href="#home">MECRO<span>EARNING</span></a>
-      <p>Simple tools. Clear records. Responsible rewards.</p>
-      <p>&copy; 2026 MECRO EARNING. All rights reserved.</p>
-    </div>
+  <footer>
+    <p>© 2026 MECRO EARNING</p>
+    <p>Free online tools and task platform</p>
   </footer>
 
-  <!-- Load Supabase before app.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js"></script>
+  <!-- Creates the admin panel used by app.js -->
+  <script>
+    function createAdminPanel() {
+      const section = document.getElementById("adminSection");
+      if (!section) {
+        throw new Error("adminSection HTML পাওয়া যায়নি।");
+      }
 
+      if (section.dataset.initialized === "true") {
+        return section;
+      }
+
+      section.dataset.initialized = "true";
+
+      const form = document.getElementById("adminTaskForm");
+
+      form.addEventListener("submit", async function(event) {
+        event.preventDefault();
+
+        const message = document.getElementById("adminTaskMessage");
+        const button = form.querySelector('button[type="submit"]');
+
+        if (!window.supabase || !currentUser || !supabaseClient) {
+          message.textContent = "আগে Admin account দিয়ে Login কর।";
+          return;
+        }
+
+        const title =
+          document.getElementById("adminTaskTitle").value.trim();
+        const description =
+          document.getElementById("adminTaskDescription").value.trim();
+        const reward =
+          Number(document.getElementById("adminTaskReward").value);
+        const rawUrl =
+          document.getElementById("adminTaskUrl").value.trim();
+        const active =
+          document.getElementById("adminTaskActive").checked;
+
+        if (!title || !description ||
+            !Number.isFinite(reward) || reward <= 0) {
+          message.textContent = "Task-এর তথ্য ঠিকভাবে পূরণ কর।";
+          return;
+        }
+
+        let taskUrl = null;
+
+        if (rawUrl) {
+          try {
+            const parsedUrl = new URL(rawUrl);
+
+            if (!["https:", "http:"].includes(parsedUrl.protocol)) {
+              throw new Error("Invalid URL");
+            }
+
+            taskUrl = parsedUrl.href;
+          } catch (_) {
+            message.textContent = "সঠিক HTTP/HTTPS URL লিখ।";
+            return;
+          }
+        }
+
+        button.disabled = true;
+        message.textContent = "Task তৈরি হচ্ছে...";
+
+        try {
+          const { error } = await supabaseClient
+            .from("tasks")
+            .insert({
+              title: title,
+              description: description,
+              reward: reward,
+              task_url: taskUrl,
+              active: active
+            });
+
+          if (error) throw error;
+
+          message.textContent = "Task তৈরি হয়েছে।";
+          form.reset();
+          document.getElementById("adminTaskActive").checked = true;
+
+          await loadAdminTasks();
+          await loadTasks();
+        } catch (error) {
+          console.error("Create task error:", error);
+          message.textContent =
+            "Task তৈরি হয়নি: " + (error.message || "Unknown error");
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      return section;
+    }
+  </script>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Main application code -->
+  <script src="app.js"></script>
 </body>
-  </html>
+</html>
