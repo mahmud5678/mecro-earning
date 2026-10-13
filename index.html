@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,7 +13,6 @@
   <header class="header">
     <div class="container nav">
       <a class="logo" href="#home">MECRO<span>EARNING</span></a>
-
       <button id="menuBtn" class="btn secondary" type="button">
         Account
       </button>
@@ -32,17 +30,10 @@
       </p>
 
       <div class="hero-actions">
-        <button
-          class="btn primary"
-          type="button"
-          id="showSignup">
+        <button class="btn primary" type="button" id="showSignup">
           Create Account
         </button>
-
-        <button
-          class="btn secondary"
-          type="button"
-          id="showLogin">
+        <button class="btn secondary" type="button" id="showLogin">
           Log In
         </button>
       </div>
@@ -51,12 +42,26 @@
     <p id="globalMessage" class="message" aria-live="polite"></p>
 
     <!-- AUTH SECTION -->
-
     <section id="authSection" class="panel">
       <div class="section-heading">
         <p class="eyebrow">YOUR ACCOUNT</p>
         <h2 id="authTitle">Create your account</h2>
         <p>Sign up or log in to access your dashboard.</p>
+      </div>
+
+      <!-- Google authentication -->
+      <div class="google-auth">
+        <button
+          id="googleLoginBtn"
+          class="btn secondary full"
+          type="button">
+          🌐 Continue with Google
+        </button>
+        <p class="google-note">Quick and easy Google sign-in</p>
+      </div>
+
+      <div class="auth-divider">
+        <span>OR CONTINUE WITH EMAIL</span>
       </div>
 
       <form id="authForm">
@@ -90,14 +95,11 @@
             name="password"
             placeholder="At least 6 characters"
             minlength="6"
-            autocomplete="new-password"
+            autocomplete="current-password"
             required>
         </div>
 
-        <button
-          id="authSubmit"
-          class="btn primary full"
-          type="submit">
+        <button id="authSubmit" class="btn primary full" type="submit">
           Create account
         </button>
 
@@ -105,26 +107,17 @@
       </form>
 
       <div class="auth-switch">
-        <button
-          type="button"
-          class="text-btn"
-          id="heroSignup">
+        <button type="button" class="text-btn" id="heroSignup">
           Create an account
         </button>
-
-        <button
-          type="button"
-          class="text-btn"
-          id="heroLogin">
+        <button type="button" class="text-btn" id="heroLogin">
           Already registered? Log in
         </button>
       </div>
     </section>
 
     <!-- USER DASHBOARD -->
-
     <section id="dashboard" hidden>
-
       <div class="section-heading">
         <p class="eyebrow">YOUR DASHBOARD</p>
         <h2>Welcome, <span id="userName">User</span>!</h2>
@@ -136,7 +129,6 @@
           <p>Available balance</p>
           <h3 id="balance">৳0.00</h3>
         </article>
-
         <article class="stat-card">
           <p>Available tasks</p>
           <h3 id="taskCount">0</h3>
@@ -144,21 +136,16 @@
       </div>
 
       <!-- TASKS -->
-
       <section class="panel">
         <div class="section-heading">
           <p class="eyebrow">AVAILABLE WORK</p>
           <h2>Tasks</h2>
           <p>Complete genuine tasks and submit your work for review.</p>
         </div>
-
-        <div id="taskList">
-          Loading tasks...
-        </div>
+        <div id="taskList">Loading tasks...</div>
       </section>
 
       <!-- WITHDRAWAL -->
-
       <section class="panel">
         <div class="section-heading">
           <p class="eyebrow">PAYMENTS</p>
@@ -195,57 +182,39 @@
               required>
           </div>
 
-          <button
-            class="btn primary full"
-            type="submit">
+          <button class="btn primary full" type="submit">
             Request withdrawal
           </button>
-
-          <p
-            id="withdrawMessage"
-            class="message"
-            aria-live="polite">
-          </p>
+          <p id="withdrawMessage" class="message" aria-live="polite"></p>
         </form>
       </section>
 
       <!-- TRANSACTION HISTORY -->
-
       <section class="panel">
         <div class="section-heading">
           <p class="eyebrow">ACCOUNT ACTIVITY</p>
           <h2>Wallet history</h2>
         </div>
-
-        <div id="historyList">
-          No transactions yet.
-        </div>
+        <div id="historyList">No transactions yet.</div>
       </section>
 
       <!-- ADMIN SECTION -->
-
       <section id="adminSection" class="panel" hidden>
         <div class="section-heading">
           <p class="eyebrow">ADMINISTRATION</p>
           <h2>Admin panel</h2>
         </div>
-
         <div id="adminContent">
           Admin tools are not configured yet.
         </div>
       </section>
 
-      <button
-        id="logoutBtn"
-        class="btn danger full"
-        type="button">
+      <button id="logoutBtn" class="btn danger full" type="button">
         Log out
       </button>
-
     </section>
 
     <!-- ABOUT -->
-
     <section class="panel about" id="about">
       <p class="eyebrow">ABOUT MECRO</p>
       <h2>Useful tasks, made simple.</h2>
@@ -270,9 +239,9 @@
     </div>
   </footer>
 
-  <!-- Supabase must load before app.js -->
+  <!-- Load Supabase before app.js -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 
 </body>
-</html>
+  </html>
