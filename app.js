@@ -363,7 +363,32 @@ function navigate(view) {
 
   function bindEvents() {
     $('authForm').addEventListener('submit', handleAuth); $('showSignup').addEventListener('click', () => setAuthMode(true)); $('showLogin').addEventListener('click', () => setAuthMode(false)); $('googleLogin').addEventListener('click', googleLogin);
-    $('withdrawForm').addEventListener('submit', handleWithdrawal); $('adminTaskForm').addEventListener('submit', createTask);
+    $('withdrawForm').addEventListener('submit', handleWithdrawal); $('testOfferwallConnection').addEventListener('click', async () => {
+  const button = $('testOfferwallConnection');
+  const result = $('offerwallTestResult');
+
+  button.disabled = true;
+  result.textContent = 'Testing connection...';
+
+  try {
+    const { data, error } = await supabaseClient.functions.invoke(
+      'offerwall-signed-url'
+    );
+
+    if (error) throw error;
+    if (!data?.url) {
+      throw new Error(data?.error || 'No signed URL returned');
+    }
+
+    result.textContent =
+      'Backend connection successful. Signed link was not opened.';
+  } catch (error) {
+    result.textContent =
+      'Connection test failed: ' + (error.message || 'Unknown error');
+  } finally {
+    button.disabled = false;
+  }
+}); $('adminTaskForm').addEventListener('submit', createTask);
     $('logoutBtn').addEventListener('click', logout); $('menuLogout').addEventListener('click', logout);
     $('moreMenuBtn').addEventListener('click', () => { const open = $('moreMenu').classList.toggle('hidden') === false; $('moreMenuBtn').setAttribute('aria-expanded', String(open)); });
     document.addEventListener('click', (event) => {
