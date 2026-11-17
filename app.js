@@ -211,26 +211,64 @@
     $('dashboard').classList.add('hidden'); $('bottomNav').classList.add('hidden'); $('authSection').classList.remove('hidden'); $('moreMenu').classList.add('hidden'); setAuthMode(false);
   }
 
-  function navigate(view) {
-    if (!state.user) return;
-    if (view === 'tasks') view = 'home';
-    if (view === 'admin' && !state.isAdmin) { toast('Admin access only.', 'error'); view = 'home'; }
-    state.activeView = view;
-    ['walletSection','historySection','accountSection'].forEach(id => $(id).classList.add('hidden'));
-    $('adminSection').classList.toggle('hidden', !(view === 'admin' && state.isAdmin));
-    if (view === 'wallet') $('walletSection').classList.remove('hidden');
-    else if (view === 'history') $('historySection').classList.remove('hidden');
-    else if (view === 'account') $('accountSection').classList.remove('hidden');
-    const showHome = view === 'home';
-    $('tasksSection').classList.toggle('hidden', !showHome);
-    $('home').classList.toggle('hidden', !showHome);
-    $('balance-hero-placeholder');
-    document.querySelector('.balance-hero').classList.toggle('hidden', !showHome);
-    document.querySelector('.stat-grid').classList.toggle('hidden', !showHome);
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.go === view || (view === 'home' && el.dataset.go === 'home')));
-    $('moreMenu').classList.add('hidden'); $('moreMenuBtn').setAttribute('aria-expanded', 'false');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  
+function navigate(view) {
+  if (!state.user) return;
+
+  if (view === 'tasks') view = 'home';
+
+  if (view === 'admin' && !state.isAdmin) {
+    toast('Admin access only.', 'error');
+    view = 'home';
   }
+
+  state.activeView = view;
+
+  [
+    'walletSection',
+    'historySection',
+    'accountSection',
+    'offerwallSection'
+  ].forEach(id => {
+    const el = $(id);
+    if (el) el.classList.add('hidden');
+  });
+
+  $('adminSection').classList.toggle(
+    'hidden',
+    !(view === 'admin' && state.isAdmin)
+  );
+
+  if (view === 'wallet') {
+    $('walletSection').classList.remove('hidden');
+  } else if (view === 'history') {
+    $('historySection').classList.remove('hidden');
+  } else if (view === 'account') {
+    $('accountSection').classList.remove('hidden');
+  } else if (view === 'offerwall') {
+    $('offerwallSection').classList.remove('hidden');
+  }
+
+  const showHome = view === 'home';
+
+  $('tasksSection').classList.toggle('hidden', !showHome);
+  $('home').classList.toggle('hidden', !showHome);
+  document.querySelector('.balance-hero').classList.toggle('hidden', !showHome);
+  document.querySelector('.stat-grid').classList.toggle('hidden', !showHome);
+
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle(
+      'active',
+      el.dataset.go === view ||
+      (view === 'home' && el.dataset.go === 'home')
+    );
+  });
+
+  $('moreMenu').classList.add('hidden');
+  $('moreMenuBtn').setAttribute('aria-expanded', 'false');
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
    async function loadAdminAll() { await Promise.allSettled([loadAdminTasks(), loadAdminSubmissions(), loadAdminWithdrawals()]); }
   async function loadAdminTasks() {
