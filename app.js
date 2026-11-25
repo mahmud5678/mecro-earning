@@ -165,17 +165,9 @@
   }
 
   async function handleWithdrawal(event) {
-    event.preventDefault(); setMessage('withdrawMessage', '');
-    const amount = Number($('withdrawAmount').value); const paymentNumber = $('paymentNumber').value.trim().replace(/\s/g, '');
-    if (!Number.isFinite(amount) || amount < MIN_WITHDRAWAL) { setMessage('withdrawMessage', 'Minimum withdrawal is ৳100.', 'error'); return; }
-    if (!/^01\d{9}$/.test(paymentNumber)) { setMessage('withdrawMessage', 'Enter an 11-digit Bangladesh mobile number starting with 01.', 'error'); return; }
-    const button = event.submitter || $('withdrawForm').querySelector('button[type="submit"]'); setBusy(button, true, 'Submitting request…');
-    try {
-      const { error } = await supabaseClient.rpc('request_withdrawal', { p_amount: amount, p_payment_number: paymentNumber });
-      if (error) throw error;
-            $('withdrawForm').reset(); setMessage('withdrawMessage', 'Request submitted. The admin will review it; payment is manual.', 'success'); toast('Withdrawal request submitted.'); await Promise.all([loadWallet(), loadWithdrawals(), loadHistory()]);
-    } catch (error) { setMessage('withdrawMessage', friendlyError(error), 'error'); }
-    finally { setBusy(button, false); }
+    event.preventDefault();
+    setMessage('withdrawMessage', 'Demo mode: cash withdrawals are disabled. No payment request was sent.', 'error');
+    toast('Cash withdrawals are disabled in this demo.', 'error');
   }
 
   async function handleAuth(event) {
@@ -341,18 +333,7 @@ function navigate(view) {
   }
 
   async function processWithdrawal(id, status, button) {
-    let note = null;
-    if (status === 'paid') {
-      note = window.prompt('First send the money from your bKash account. Then enter the transaction ID or short payment note:');
-      if (note === null) return;
-      if (!note.trim()) { toast('Enter the transaction ID or payment note after sending the money.', 'error'); return; }
-      if (!window.confirm('Confirm that you have already sent the exact amount to the displayed bKash number?')) return;
-    } else if (!window.confirm('Reject this withdrawal request?')) return;
-    setBusy(button, true, 'Updating…');
-    try {
-      const { error } = await supabaseClient.rpc('admin_process_withdrawal', { p_request_id: Number(id), p_new_status: status, p_transaction_note: note }); if (error) throw error;
-      toast(status === 'paid' ? 'Withdrawal marked paid and wallet ledger updated.' : 'Withdrawal rejected.'); await Promise.all([loadAdminWithdrawals(), loadWithdrawals(), loadWallet(), loadHistory()]);
-    } catch (error) { toast(friendlyError(error), 'error'); } finally { setBusy(button, false); }
+    toast('Cash payout processing is disabled in this demo.', 'error');
   }
 
   function setAdminTab(tab) {
