@@ -6,7 +6,7 @@
   const MIN_WITHDRAWAL = 100;
   const $ = (id) => document.getElementById(id);
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-  const state = { user: null, profile: null, isAdmin: false, signup: false, tasks: [], submissions: [], transactions: [], withdrawals: [], activeView: 'home', adminTab: 'tasks' };
+  const state = { user: null, profile: null, isAdmin: false, signup: false, tasks: [], submissions: [], transactions: [], activeView: 'home', adminTab: 'tasks' };
 
   const money = (n) => Number(n || 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -28,7 +28,6 @@
     if (/User already registered/i.test(raw)) return 'This email already has an account. Please sign in.';
     if (/Email not confirmed/i.test(raw)) return 'Please confirm your email before signing in.';
     if (/Admin permission required/i.test(raw)) return 'This action is only available to an admin account.';
-    if (/Minimum withdrawal/i.test(raw)) return 'Minimum withdrawal is pts 100.';
     if (/Insufficient available balance/i.test(raw)) return 'Your available balance is not enough for this request.';
     if (/already been reviewed|already been processed/i.test(raw)) return 'This item has already been processed. Refresh the list.';
     return raw;
@@ -92,7 +91,7 @@
   }
 
   async function loadDashboard() {
-    await Promise.allSettled([loadTasks(), loadWallet(), loadHistory(), loadWithdrawals()]);
+    await Promise.allSettled([loadTasks(), loadWallet(), loadHistory()]);
     if (state.isAdmin) await loadAdminAll();
   }
 
@@ -155,19 +154,6 @@
       ...subs.map(x => ({ date: x.created_at, title: `Task submission #${x.id}`, status: x.status, kind: 'submission' }))
     ].sort((a,b) => new Date(b.date) - new Date(a.date));
     $('historyList').innerHTML = events.length ? events.map(e => `<div class="history-row"><span class="history-icon ${e.kind === 'wallet' ? 'wallet' : 'task'}">${e.kind === 'wallet' ? 'pts ' : '▤'}</span><div class="history-main"><strong>${esc(e.title)}</strong><small>${niceDate(e.date)}</small></div><div class="history-value">${e.kind === 'wallet' ? `<strong class="${e.amount >= 0 ? 'positive' : 'negative'}">${e.amount >= 0 ? '+' : '−'}pts ${money(Math.abs(e.amount))}</strong>` : `<span class="status-pill ${esc(e.status)}">${esc(e.status)}</span>`}</div></div>`).join('') : '<div class="empty-state small-empty"><strong>No activity yet</strong><p>Your tasks and wallet transactions will appear here.</p></div>';
-  }
-
-  async function loadWithdrawals() {
-    const { data, error } = await supabaseClient.from('withdrawal_requests').select('id,amount,payment_number,status,created_at').eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(20);
-    if (error) throw error;
-    state.withdrawals = data || [];
-    $('withdrawalHistory').innerHTML = state.withdrawals.length ? state.withdrawals.map(w => `<div class="compact-row"><div><strong>pts ${money(w.amount)}</strong><small>${esc(w.payment_number || '')} · ${niceDate(w.created_at)}</small></div><span class="status-pill ${esc(w.status)}">${esc(w.status)}</span></div>`).join('') : '<div class="empty-note">No withdrawal requests yet.</div>';
-  }
-
-  async function handleWithdrawal(event) {
-    event.preventDefault();
-    setMessage('withdrawMessage', 'Demo mode: cash withdrawals are disabled. No payment request was sent.', 'error');
-    toast('Cash withdrawals are disabled in this demo.', 'error');
   }
 
   async function handleAuth(event) {
@@ -262,12 +248,12 @@ function navigate(view) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-   async function loadAdminAll() { await Promise.allSettled([loadAdminTasks(), loadAdminSubmissions(), loadAdminWithdrawals()]); }
+   async function loadAdminAll() { await Promise.allSettled([loadAdminTasks(), loadAdminSubmissions()]); }
   async function loadAdminTasks() {
     const { data, error } = await supabaseClient.from('tasks').select('id,title,description,reward,task_url,active,created_at').order('created_at', { ascending: false });
     if (error) throw error;
     const list = $('adminTaskList');
-    list.innerHTML = data?.length ? data.map(t => `<article class="admin-item"><div class="admin-item-main"><div class="admin-item-title"><strong>${esc(t.title)}</strong><span class="status-pill ${t.active ? 'active' : 'inactive'}">${t.active ? 'Active' : 'Paused'}</span></div><p>${esc(t.description)}</p><small>Task #${t.id} · Reward pts ${money(t.reward)} · ${niceDate(t.created_at)}</small><a href="${esc(isHttpUrl(t.task_url) ? t.task_url : '#')}" target="_blank" rel="noopener noreferrer">Open URL ↗</a></div><div class="admin-item-actions"><button class="btn btn-outline btn-small" data-task-toggle="${t.id}" data-active="${t.active}">${t.active ? 'Pause' : 'Activate'}</button><button class="btn btn-danger btn-small" data-task-delete="${t.id}">Delete</button></div></article>`).join('') : '<div class="empty-note">No tasks have been created.</div>';
+    list.innerHTML = data?.length ? data.map(t => `<article class="admin-item"><div class="admin-item-main"><div class="admin-item-title"><strong>${esc(t.title)}</strong><span class="status-pill ${t.active ? 'active' : 'inactive'}">${t.active ? 'Active' : 'Paused'}</span></div><p>${esc(t.description)}</p><small>Task #${t.id} · Reward pts ${money(t.reward)} · ${niceDate(t.created_at)}</small><a href="${esc(isHttpUrl(t.task_url) ? t.task_url : '#')}" target="_blank" rel="noopener noreferrer">Open URL ↗</a></div><div class="admin-item-actions"><button class="btn btn-outline btn-small" data-task-edit="${t.id}">Edit</button><button class="btn btn-outline btn-small" data-task-toggle="${t.id}" data-active="${t.active}">${t.active ? 'Pause' : 'Activate'}</button><button class="btn btn-danger btn-small" data-task-delete="${t.id}">Delete</button></div></article>`).join('') : '<div class="empty-note">No tasks have been created.</div>';
   }
 
   async function createTask(event) {
@@ -279,6 +265,38 @@ function navigate(view) {
       const { error } = await supabaseClient.from('tasks').insert({ title, description, reward, task_url, active }); if (error) throw error;
       $('adminTaskForm').reset(); $('adminTaskActive').checked = true; setMessage('adminTaskMessage', 'Task published successfully.', 'success'); toast('Task published.'); await Promise.all([loadAdminTasks(), loadTasks()]);
     } catch (error) { setMessage('adminTaskMessage', friendlyError(error), 'error'); }
+    finally { setBusy(button, false); }
+  }
+
+  async function editTask(id, button) {
+    let task = state.tasks.find(item => String(item.id) === String(id));
+    if (!task) {
+      const { data, error } = await supabaseClient.from('tasks').select('id,title,description,reward,task_url').eq('id', id).single();
+      if (error) { toast(friendlyError(error), 'error'); return; }
+      task = data;
+    }
+    const title = window.prompt('Task title:', task.title);
+    if (title === null) return;
+    const description = window.prompt('Task instructions:', task.description);
+    if (description === null) return;
+    const rewardText = window.prompt('Points reward:', String(task.reward));
+    if (rewardText === null) return;
+    const taskUrl = window.prompt('Task URL (https://):', task.task_url || '');
+    if (taskUrl === null) return;
+    const reward = Number(rewardText);
+    if (!title.trim() || !description.trim() || !Number.isFinite(reward) || reward <= 0 || !isHttpUrl(taskUrl.trim())) {
+      toast('Enter a title, instructions, positive points and a valid http(s) URL.', 'error');
+      return;
+    }
+    setBusy(button, true, 'Saving…');
+    try {
+      const { error } = await supabaseClient.from('tasks').update({
+        title: title.trim(), description: description.trim(), reward, task_url: taskUrl.trim()
+      }).eq('id', id);
+      if (error) throw error;
+      toast('Task updated.');
+      await Promise.all([loadAdminTasks(), loadTasks()]);
+    } catch (error) { toast(friendlyError(error), 'error'); }
     finally { setBusy(button, false); }
   }
 
@@ -317,34 +335,19 @@ function navigate(view) {
       const { data, error } = await supabaseClient.rpc('review_task_submission', { p_submission_id: Number(id), p_new_status: newStatus });
       if (error) throw error;
       toast(newStatus === 'accepted' ? `Approved. Reward pts ${money(data?.reward)} credited.` : 'Submission rejected.');
-      await Promise.all([loadAdminSubmissions(), loadAdminWithdrawals(), loadWallet(), loadHistory(), loadTasks()]);
+      await Promise.all([loadAdminSubmissions(), loadWallet(), loadHistory(), loadTasks()]);
     } catch (error) { toast(friendlyError(error), 'error'); }
     finally { setBusy(button, false); }
-  }
-
-  async function loadAdminWithdrawals() {
-    const { data, error } = await supabaseClient.from('withdrawal_requests').select('id,user_id,amount,payment_number,status,created_at').order('created_at', { ascending: false }).limit(150);
-    if (error) throw error;
-    const rows = data || []; $('withdrawalBadge').textContent = rows.filter(r => r.status === 'pending').length;
-    const ids = [...new Set(rows.map(r => r.user_id))]; let profiles = [];
-    if (ids.length) { const res = await supabaseClient.from('profiles').select('id,username,display_name').in('id', ids); if (!res.error) profiles = res.data || []; }
-    const pmap = new Map(profiles.map(p => [p.id, p]));
-          $('adminWithdrawalList').innerHTML = rows.length ? rows.map(w => { const p = pmap.get(w.user_id); return `<article class="admin-item"><div class="admin-item-main"><div class="admin-item-title"><strong>pts ${money(w.amount)}</strong><span class="status-pill ${esc(w.status)}">${esc(w.status)}</span></div><p><b>bKash:</b> ${esc(w.payment_number || 'Not provided')}</p><small>Request #${w.id} · ${esc(p?.display_name || p?.username || w.user_id.slice(0,8))} · ${niceDate(w.created_at)}</small></div>${w.status === 'pending' ? `<div class="admin-item-actions vertical-actions"><button class="btn btn-primary btn-small" data-withdraw-process="paid" data-request="${w.id}">Mark paid</button><button class="btn btn-danger btn-small" data-withdraw-process="rejected" data-request="${w.id}">Reject</button></div>` : ''}</article>`; }).join('') : '<div class="empty-note">No withdrawal requests yet.</div>';
-  }
-
-  async function processWithdrawal(id, status, button) {
-    toast('Cash payout processing is disabled in this demo.', 'error');
   }
 
   function setAdminTab(tab) {
     state.adminTab = tab;
     document.querySelectorAll('.admin-tab').forEach(b => b.classList.toggle('active', b.dataset.adminTab === tab));
-    $('adminTasksTab').classList.toggle('hidden', tab !== 'tasks'); $('adminSubmissionsTab').classList.toggle('hidden', tab !== 'submissions'); $('adminWithdrawalsTab').classList.toggle('hidden', tab !== 'withdrawals');
+    $('adminTasksTab').classList.toggle('hidden', tab !== 'tasks'); $('adminSubmissionsTab').classList.toggle('hidden', tab !== 'submissions');
   }
 
   function bindEvents() {
-    $('authForm').addEventListener('submit', handleAuth); $('showSignup').addEventListener('click', () => setAuthMode(true)); $('showLogin').addEventListener('click', () => setAuthMode(false)); $('googleLogin').addEventListener('click', googleLogin);
-    $('withdrawForm').addEventListener('submit', handleWithdrawal); $('testOfferwallConnection').addEventListener('click', async () => {
+    $('authForm').addEventListener('submit', handleAuth); $('showSignup').addEventListener('click', () => setAuthMode(true)); $('showLogin').addEventListener('click', () => setAuthMode(false)); $('googleLogin').addEventListener('click', googleLogin); $('testOfferwallConnection').addEventListener('click', async () => {
   const button = $('testOfferwallConnection');
   const result = $('offerwallTestResult');
 
@@ -376,16 +379,15 @@ function navigate(view) {
       const go = event.target.closest('[data-go]'); if (go) { navigate(go.dataset.go); return; }
       const taskButton = event.target.closest('[data-task-submit]'); if (taskButton) { submitProof(taskButton.dataset.taskSubmit, taskButton); return; }
             const review = event.target.closest('[data-review]'); if (review) { reviewSubmission(review.dataset.submission, review.dataset.review, review); return; }
+      const edit = event.target.closest('[data-task-edit]'); if (edit) { editTask(edit.dataset.taskEdit, edit); return; }
       const toggle = event.target.closest('[data-task-toggle]'); if (toggle) { toggleTask(toggle.dataset.taskToggle, toggle.dataset.active === 'true', toggle); return; }
       const del = event.target.closest('[data-task-delete]'); if (del) { deleteTask(del.dataset.taskDelete, del); return; }
-      const withdrawal = event.target.closest('[data-withdraw-process]'); if (withdrawal) { processWithdrawal(withdrawal.dataset.request, withdrawal.dataset.withdrawProcess, withdrawal); return; }
       const tab = event.target.closest('[data-admin-tab]'); if (tab) { setAdminTab(tab.dataset.adminTab); return; }
       if (!event.target.closest('.top-actions') && !event.target.closest('.more-menu')) { $('moreMenu').classList.add('hidden'); $('moreMenuBtn').setAttribute('aria-expanded', 'false'); }
     });
     $('refreshTasks').addEventListener('click', () => loadTasks().catch(e => toast(friendlyError(e), 'error')));
     $('refreshAdminTasks').addEventListener('click', () => loadAdminTasks().catch(e => toast(friendlyError(e), 'error')));
     $('refreshSubmissions').addEventListener('click', () => loadAdminSubmissions().catch(e => toast(friendlyError(e), 'error')));
-    $('refreshWithdrawals').addEventListener('click', () => loadAdminWithdrawals().catch(e => toast(friendlyError(e), 'error')));
   }
 
   async function init() {
