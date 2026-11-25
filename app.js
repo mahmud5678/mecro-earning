@@ -28,7 +28,7 @@
     if (/User already registered/i.test(raw)) return 'This email already has an account. Please sign in.';
     if (/Email not confirmed/i.test(raw)) return 'Please confirm your email before signing in.';
     if (/Admin permission required/i.test(raw)) return 'This action is only available to an admin account.';
-    if (/Minimum withdrawal/i.test(raw)) return 'Minimum withdrawal is ৳100.';
+    if (/Minimum withdrawal/i.test(raw)) return 'Minimum withdrawal is pts 100.';
     if (/Insufficient available balance/i.test(raw)) return 'Your available balance is not enough for this request.';
     if (/already been reviewed|already been processed/i.test(raw)) return 'This item has already been processed. Refresh the list.';
     return raw;
@@ -112,7 +112,7 @@
       const previous = latestByTask.get(String(task.id));
       const status = previous ? `<span class="status-pill ${esc(previous.status)}">${esc(previous.status)}</span>` : '<span class="status-pill available">Available</span>';
       const action = previous ? `<button class="btn btn-outline btn-small" disabled>${previous.status === 'pending' ? 'Under review' : previous.status === 'accepted' ? 'Completed' : previous.status === 'rejected' ? 'Rejected' : esc(previous.status)}</button>` : `<button class="btn btn-primary btn-small" data-task-submit="${esc(task.id)}">Submit proof <span>→</span></button>`;
-      return `<article class="task-card"><div class="task-card-top"><span class="task-icon">✦</span><span class="reward-pill">৳${money(task.reward)}</span></div><div class="task-status-row">${status}<span class="task-date">${niceDate(task.created_at)}</span></div><h3>${esc(task.title)}</h3><p>${esc(task.description)}</p><div class="task-card-actions"><a class="btn btn-outline btn-small" href="${esc(isHttpUrl(task.task_url) ? task.task_url : '#')}" target="_blank" rel="noopener noreferrer" ${isHttpUrl(task.task_url) ? '' : 'aria-disabled="true"'}>Open task ↗</a>${action}</div></article>`;
+      return `<article class="task-card"><div class="task-card-top"><span class="task-icon">✦</span><span class="reward-pill">pts ${money(task.reward)}</span></div><div class="task-status-row">${status}<span class="task-date">${niceDate(task.created_at)}</span></div><h3>${esc(task.title)}</h3><p>${esc(task.description)}</p><div class="task-card-actions"><a class="btn btn-outline btn-small" href="${esc(isHttpUrl(task.task_url) ? task.task_url : '#')}" target="_blank" rel="noopener noreferrer" ${isHttpUrl(task.task_url) ? '' : 'aria-disabled="true"'}>Open task ↗</a>${action}</div></article>`;
     }).join('');
   }
 
@@ -139,7 +139,7 @@
     state.transactions = data || [];
     const balance = state.transactions.reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const earned = state.transactions.filter(row => Number(row.amount) > 0).reduce((sum, row) => sum + Number(row.amount), 0);
-    $('balance').textContent = money(balance); $('totalEarned').textContent = '৳' + money(earned);
+    $('balance').textContent = money(balance); $('totalEarned').textContent = 'pts ' + money(earned);
   }
 
   async function loadHistory() {
@@ -154,14 +154,14 @@
       ...txs.map(x => ({ date: x.created_at, title: x.reason || 'Wallet transaction', amount: Number(x.amount), kind: 'wallet' })),
       ...subs.map(x => ({ date: x.created_at, title: `Task submission #${x.id}`, status: x.status, kind: 'submission' }))
     ].sort((a,b) => new Date(b.date) - new Date(a.date));
-    $('historyList').innerHTML = events.length ? events.map(e => `<div class="history-row"><span class="history-icon ${e.kind === 'wallet' ? 'wallet' : 'task'}">${e.kind === 'wallet' ? '৳' : '▤'}</span><div class="history-main"><strong>${esc(e.title)}</strong><small>${niceDate(e.date)}</small></div><div class="history-value">${e.kind === 'wallet' ? `<strong class="${e.amount >= 0 ? 'positive' : 'negative'}">${e.amount >= 0 ? '+' : '−'}৳${money(Math.abs(e.amount))}</strong>` : `<span class="status-pill ${esc(e.status)}">${esc(e.status)}</span>`}</div></div>`).join('') : '<div class="empty-state small-empty"><strong>No activity yet</strong><p>Your tasks and wallet transactions will appear here.</p></div>';
+    $('historyList').innerHTML = events.length ? events.map(e => `<div class="history-row"><span class="history-icon ${e.kind === 'wallet' ? 'wallet' : 'task'}">${e.kind === 'wallet' ? 'pts ' : '▤'}</span><div class="history-main"><strong>${esc(e.title)}</strong><small>${niceDate(e.date)}</small></div><div class="history-value">${e.kind === 'wallet' ? `<strong class="${e.amount >= 0 ? 'positive' : 'negative'}">${e.amount >= 0 ? '+' : '−'}pts ${money(Math.abs(e.amount))}</strong>` : `<span class="status-pill ${esc(e.status)}">${esc(e.status)}</span>`}</div></div>`).join('') : '<div class="empty-state small-empty"><strong>No activity yet</strong><p>Your tasks and wallet transactions will appear here.</p></div>';
   }
 
   async function loadWithdrawals() {
     const { data, error } = await supabaseClient.from('withdrawal_requests').select('id,amount,payment_number,status,created_at').eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(20);
     if (error) throw error;
     state.withdrawals = data || [];
-    $('withdrawalHistory').innerHTML = state.withdrawals.length ? state.withdrawals.map(w => `<div class="compact-row"><div><strong>৳${money(w.amount)}</strong><small>${esc(w.payment_number || '')} · ${niceDate(w.created_at)}</small></div><span class="status-pill ${esc(w.status)}">${esc(w.status)}</span></div>`).join('') : '<div class="empty-note">No withdrawal requests yet.</div>';
+    $('withdrawalHistory').innerHTML = state.withdrawals.length ? state.withdrawals.map(w => `<div class="compact-row"><div><strong>pts ${money(w.amount)}</strong><small>${esc(w.payment_number || '')} · ${niceDate(w.created_at)}</small></div><span class="status-pill ${esc(w.status)}">${esc(w.status)}</span></div>`).join('') : '<div class="empty-note">No withdrawal requests yet.</div>';
   }
 
   async function handleWithdrawal(event) {
@@ -267,7 +267,7 @@ function navigate(view) {
     const { data, error } = await supabaseClient.from('tasks').select('id,title,description,reward,task_url,active,created_at').order('created_at', { ascending: false });
     if (error) throw error;
     const list = $('adminTaskList');
-    list.innerHTML = data?.length ? data.map(t => `<article class="admin-item"><div class="admin-item-main"><div class="admin-item-title"><strong>${esc(t.title)}</strong><span class="status-pill ${t.active ? 'active' : 'inactive'}">${t.active ? 'Active' : 'Paused'}</span></div><p>${esc(t.description)}</p><small>Task #${t.id} · Reward ৳${money(t.reward)} · ${niceDate(t.created_at)}</small><a href="${esc(isHttpUrl(t.task_url) ? t.task_url : '#')}" target="_blank" rel="noopener noreferrer">Open URL ↗</a></div><div class="admin-item-actions"><button class="btn btn-outline btn-small" data-task-toggle="${t.id}" data-active="${t.active}">${t.active ? 'Pause' : 'Activate'}</button><button class="btn btn-danger btn-small" data-task-delete="${t.id}">Delete</button></div></article>`).join('') : '<div class="empty-note">No tasks have been created.</div>';
+    list.innerHTML = data?.length ? data.map(t => `<article class="admin-item"><div class="admin-item-main"><div class="admin-item-title"><strong>${esc(t.title)}</strong><span class="status-pill ${t.active ? 'active' : 'inactive'}">${t.active ? 'Active' : 'Paused'}</span></div><p>${esc(t.description)}</p><small>Task #${t.id} · Reward pts ${money(t.reward)} · ${niceDate(t.created_at)}</small><a href="${esc(isHttpUrl(t.task_url) ? t.task_url : '#')}" target="_blank" rel="noopener noreferrer">Open URL ↗</a></div><div class="admin-item-actions"><button class="btn btn-outline btn-small" data-task-toggle="${t.id}" data-active="${t.active}">${t.active ? 'Pause' : 'Activate'}</button><button class="btn btn-danger btn-small" data-task-delete="${t.id}">Delete</button></div></article>`).join('') : '<div class="empty-note">No tasks have been created.</div>';
   }
 
   async function createTask(event) {
@@ -316,7 +316,7 @@ function navigate(view) {
     try {
       const { data, error } = await supabaseClient.rpc('review_task_submission', { p_submission_id: Number(id), p_new_status: newStatus });
       if (error) throw error;
-      toast(newStatus === 'accepted' ? `Approved. Reward ৳${money(data?.reward)} credited.` : 'Submission rejected.');
+      toast(newStatus === 'accepted' ? `Approved. Reward pts ${money(data?.reward)} credited.` : 'Submission rejected.');
       await Promise.all([loadAdminSubmissions(), loadAdminWithdrawals(), loadWallet(), loadHistory(), loadTasks()]);
     } catch (error) { toast(friendlyError(error), 'error'); }
     finally { setBusy(button, false); }
@@ -329,7 +329,7 @@ function navigate(view) {
     const ids = [...new Set(rows.map(r => r.user_id))]; let profiles = [];
     if (ids.length) { const res = await supabaseClient.from('profiles').select('id,username,display_name').in('id', ids); if (!res.error) profiles = res.data || []; }
     const pmap = new Map(profiles.map(p => [p.id, p]));
-          $('adminWithdrawalList').innerHTML = rows.length ? rows.map(w => { const p = pmap.get(w.user_id); return `<article class="admin-item"><div class="admin-item-main"><div class="admin-item-title"><strong>৳${money(w.amount)}</strong><span class="status-pill ${esc(w.status)}">${esc(w.status)}</span></div><p><b>bKash:</b> ${esc(w.payment_number || 'Not provided')}</p><small>Request #${w.id} · ${esc(p?.display_name || p?.username || w.user_id.slice(0,8))} · ${niceDate(w.created_at)}</small></div>${w.status === 'pending' ? `<div class="admin-item-actions vertical-actions"><button class="btn btn-primary btn-small" data-withdraw-process="paid" data-request="${w.id}">Mark paid</button><button class="btn btn-danger btn-small" data-withdraw-process="rejected" data-request="${w.id}">Reject</button></div>` : ''}</article>`; }).join('') : '<div class="empty-note">No withdrawal requests yet.</div>';
+          $('adminWithdrawalList').innerHTML = rows.length ? rows.map(w => { const p = pmap.get(w.user_id); return `<article class="admin-item"><div class="admin-item-main"><div class="admin-item-title"><strong>pts ${money(w.amount)}</strong><span class="status-pill ${esc(w.status)}">${esc(w.status)}</span></div><p><b>bKash:</b> ${esc(w.payment_number || 'Not provided')}</p><small>Request #${w.id} · ${esc(p?.display_name || p?.username || w.user_id.slice(0,8))} · ${niceDate(w.created_at)}</small></div>${w.status === 'pending' ? `<div class="admin-item-actions vertical-actions"><button class="btn btn-primary btn-small" data-withdraw-process="paid" data-request="${w.id}">Mark paid</button><button class="btn btn-danger btn-small" data-withdraw-process="rejected" data-request="${w.id}">Reject</button></div>` : ''}</article>`; }).join('') : '<div class="empty-note">No withdrawal requests yet.</div>';
   }
 
   async function processWithdrawal(id, status, button) {
