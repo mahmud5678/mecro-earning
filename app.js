@@ -3,7 +3,6 @@
   'use strict';
   const SUPABASE_URL = 'https://orerzedneirhykjqtdyw.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_gFk6OpRBgbl9oczAw650IA_72KoG1RU';
-  const MIN_WITHDRAWAL = 100;
   const $ = (id) => document.getElementById(id);
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
   const state = { user: null, profile: null, isAdmin: false, signup: false, tasks: [], submissions: [], transactions: [], activeView: 'home', adminTab: 'tasks' };
@@ -138,7 +137,7 @@
     state.transactions = data || [];
     const balance = state.transactions.reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const earned = state.transactions.filter(row => Number(row.amount) > 0).reduce((sum, row) => sum + Number(row.amount), 0);
-    $('balance').textContent = money(balance); $('totalEarned').textContent = 'pts ' + money(earned);
+    $('balance').textContent = money(balance); $('totalEarned').textContent = 'pts ' + money(earned); if ($('walletBalance')) $('walletBalance').textContent = money(balance) + ' pts'; if ($('walletEarned')) $('walletEarned').textContent = money(earned) + ' pts';
   }
 
   async function loadHistory() {
